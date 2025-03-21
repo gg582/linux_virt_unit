@@ -5,6 +5,7 @@ import (
     "net/http"
     i "github.com/yoonjin67/lvirt_applicationUnit/incusUnit"
     lvirt "github.com/yoonjin67/lvirt_applicationUnit"
+    db "github.com/yoonjin67/lvirt_applicationUnit/mongo_connect"
     "log"
     "time"
     "sync"
@@ -15,6 +16,9 @@ import (
 var portMutex sync.Mutex
 
 func InitHttpRequest(WorkQueue *i.ContainerQueue) {
+
+    db.InitMongoDB()
+    defer db.CloseMongoDB() // 프로그램 종료 시 MongoDB 연결 해제
     WorkQueue.Start(5) // 5개의 작업자 시작
     defer WorkQueue.Stop()
 
