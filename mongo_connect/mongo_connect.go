@@ -1,7 +1,7 @@
 package mongo_connect
 
 import (
-    i      "github.com/yoonjin67/lvirt_applicationUnit/incusUnit"
+    lvirt "github.com/yoonjin67/lvirt_applicationUnit"
     "net/http"
     "context"
     "encoding/json"
@@ -18,7 +18,7 @@ var password string = "asdfasdf"
 
 
 func botCheck(u string, pw string) bool {
-    cur, err := i.UserCol.Find(context.Background(), bson.D{{}})
+    cur, err := lvirt.UserCol.Find(context.Background(), bson.D{{}})
     if err != nil {
         log.Printf("Database query error: %v", err)
         return true
@@ -30,7 +30,7 @@ func botCheck(u string, pw string) bool {
         if err != nil {
             continue
         }
-        var i i.UserInfo
+        var i lvirt.UserInfo
         if err := json.Unmarshal(current, &i); err != nil {
             continue
         }
@@ -55,7 +55,7 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
 
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
     
-    var in i.UserInfo
+    var in lvirt.UserInfo
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(wr, err.Error(), http.StatusBadRequest)
@@ -68,16 +68,16 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
     }
 
     filter := bson.M{"username": in.Username, "password": in.Password}
-    cur, err := i.AddrCol.Find(ctx, filter)
+    cur, err := lvirt.AddrCol.Find(ctx, filter)
     if err != nil {
         http.Error(wr, err.Error(), http.StatusInternalServerError)
         return
     }
     defer cur.Close(ctx)
 
-    var results []i.ContainerInfo
+    var results []lvirt.ContainerInfo
     for cur.Next(ctx) {
-        var info i.ContainerInfo
+        var info lvirt.ContainerInfo
         if err := cur.Decode(&info); err != nil {
             continue
         }
@@ -113,7 +113,7 @@ func initMongoDB() {
     }
 
     // 컬렉션 초기화
-    i.Colct = client.Database("MC_Json").Collection("Flag Collections")
-    i.AddrCol = client.Database("MC_IP").Collection("IP Collections")
-    i.UserCol = client.Database("MC_USER").Collection("User Collections")
+    lvirt.Colct = client.Database("MC_Json").Collection("Flag Collections")
+    lvirt.AddrCol = client.Database("MC_IP").Collection("IP Collections")
+    lvirt.UserCol = client.Database("MC_USER").Collection("User Collections")
 }

@@ -7,7 +7,7 @@ import (
     "github.com/lxc/incus/shared/api"
     "net/http"
     c "github.com/yoonjin67/lvirt_applicationUnit/crypto"
-    _ "github.com/yoonjin67/lvirt_applicationUnit"
+    lvirt "github.com/yoonjin67/lvirt_applicationUnit"
     "context"
     "bytes"
     "encoding/json"
@@ -19,33 +19,11 @@ import (
     "sync"
     "time"
 
-    "github.com/gorilla/mux"
     "go.mongodb.org/mongo-driver/bson"
-    "go.mongodb.org/mongo-driver/mongo"
 )
 
 
-type UserInfo struct {
-    Username     string `json:"username"`
-    UsernameIV   string `json:"username_iv"`
-    Password     string `json:"password"`
-    PasswordIV   string `json:"password_iv"`
-    Key          string `json:"key"`
-}
-
-type ContainerInfo struct {
-    Username string `json:"username"`
-    UsernameIV string `json:"username_iv"`
-    Password string `json:"password"`
-    PasswordIV       string `json:"password_iv"`
-    Key      string `json:"key"`
-    TAG      string `json:"tag"`
-    Serverip string `json:"serverip"`
-    Serverport string `json:"serverport"`
-    VMStatus     string `json:"vmstatus"`
-}
-
-var INFO ContainerInfo
+var INFO lvirt.ContainerInfo
 
 
 // IntHeap은 int64 값을 저장하는 최소 힙입니다.
@@ -86,14 +64,10 @@ var authFlag bool = false
 var port   string
 var portprev string = "60001"
 var cursor interface{}
-var route *mux.Router
-var route_MC *mux.Router
 var current []byte
 var current_Config []byte
 var buf bytes.Buffer
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
-var Colct *mongo.Collection
-var AddrCol , UserCol *mongo.Collection
 var portInt int = 27020
 var portIntonePlace int = 27020
 var ctx context.Context
@@ -107,12 +81,12 @@ var portMutex sync.Mutex
 
 // 컨테이너 생성을 위한 작업자 풀
 type ContainerQueue struct {
-    tasks chan ContainerInfo
+    tasks chan lvirt.ContainerInfo
     wg    sync.WaitGroup
 }
 
 var WorkQueue = &ContainerQueue{
-    tasks: make(chan ContainerInfo, 100), // 버퍼 크기 100으로 설정
+    tasks: make(chan lvirt.ContainerInfo, 100), // 버퍼 크기 100으로 설정
 }
 
 func TouchFile(name string) {
@@ -152,7 +126,7 @@ func (q *ContainerQueue) worker() {
     }
 }
 
-func getContainerInfo(tag string, info ContainerInfo) ContainerInfo {
+func GetContainerInfo(tag string, info lvirt.ContainerInfo) lvirt.ContainerInfo {
      state, _, err := IncusCli.GetInstanceState(tag)
      if err != nil {
          log.Println("failed to get instance state")
@@ -166,7 +140,7 @@ func getContainerInfo(tag string, info ContainerInfo) ContainerInfo {
 }
 
 
-func createContainer(info ContainerInfo) {
+func createContainer(info lvirt.ContainerInfo) {
     username, err := c.DecryptString(info.Username, info.Key, info.UsernameIV)
     password, err := c.DecryptString(info.Password, info.Key, info.PasswordIV)
     if err != nil {
@@ -209,9 +183,9 @@ func createContainer(info ContainerInfo) {
         return
     }
 
-    info = getContainerInfo(tag, info)
+    info = GetContainerInfo(tag, info)
 
-    ipRes, insertErr := AddrCol.InsertOne(ctx, info)
+    ipRes, insertErr := lvirt.AddrCol.InsertOne(ctx, info)
     if insertErr != nil {
         log.Println("Cannot insert container IP into MongoDB")
     } else {
@@ -223,7 +197,7 @@ func createContainer(info ContainerInfo) {
 func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-    var info ContainerInfo
+    var info lvirt.ContainerInfo
     if err := json.NewDecoder(req.Body).Decode(&info); err != nil {
         http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
         return
@@ -326,7 +300,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     stringForTag := string(forTag)
     cmdDelete := exec.CommandContext(ctx, "/bin/bash", "delete_container.sh "+stringForTag)
 
-    cur, err := AddrCol.Find(ctx, bson.D{{}})
+    cur, err := lvirt.AddrCol.Find(ctx, bson.D{{}})
     if err != nil {
         http.Error(wr, err.Error(), http.StatusInternalServerError)
         return
@@ -338,7 +312,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
         if err != nil {
             continue
         }
-        var INFO ContainerInfo
+        var INFO lvirt.ContainerInfo
         if err := json.Unmarshal(resp, &INFO); err != nil {
             continue
         }
@@ -351,7 +325,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
             heap.Push(PortHeap, int64(p))
             portMutex.Unlock()
 
-            if _, err := AddrCol.DeleteOne(ctx, cur.Current); err != nil {
+            if _, err := lvirt.AddrCol.DeleteOne(ctx, cur.Current); err != nil {
                 log.Printf("Error deleting container from database: %v", err)
             }
 
@@ -374,7 +348,7 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
     INFO.Serverip = SERVER_IP
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-    var in UserInfo
+    var in lvirt.UserInfo
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
@@ -397,7 +371,7 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
         return
     }
 
-    cur, err := AddrCol.Find(ctx, bson.D{{}})
+    cur, err := lvirt.AddrCol.Find(ctx, bson.D{{}})
     if err != nil {
         log.Println("Error on finding information: ", err)
         http.Error(wr, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -407,7 +381,7 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
 
     jsonList := make([]interface{}, 0, 100000)
     for cur.Next(ctx) {
-        var info ContainerInfo
+        var info lvirt.ContainerInfo
         if err := cur.Decode(&info); err != nil {
             log.Println("Error decoding document: ", err)
             continue
@@ -433,7 +407,7 @@ func Register(wr http.ResponseWriter, req *http.Request) {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    var u UserInfo
+    var u lvirt.UserInfo
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
@@ -456,7 +430,7 @@ func Register(wr http.ResponseWriter, req *http.Request) {
         return
     }
 
-    if _, err := UserCol.InsertOne(ctx, u); err != nil {
+    if _, err := lvirt.UserCol.InsertOne(ctx, u); err != nil {
         http.Error(wr, "Failed to register user: "+err.Error(), http.StatusInternalServerError)
         return
     }
