@@ -68,7 +68,7 @@ type ContainerInfo struct {
 
 var INFO ContainerInfo
 
-func initHttpRequest(containerQueue *i.ContainerQueue) {
+func InitHttpRequest(containerQueue *i.ContainerQueue) {
     containerQueue.Start(5) // 5개의 작업자 시작
     defer containerQueue.Stop()
 
