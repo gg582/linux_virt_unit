@@ -57,7 +57,7 @@ var PortHeap *IntHeap
 var ePlace int64
 var IncusCli client.InstanceServer
 var mydir string = "/usr/local/bin/linuxVirtualization/"
-var SERVER_IP = os.Args[1]
+var SERVER_IP = "127.0.0.1"
 var PORT_LIST = make([]int64,0,100000)
 var flag   bool
 var authFlag bool = false
