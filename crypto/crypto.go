@@ -1,16 +1,78 @@
 package crypto
 
+
 import (
-    "math"
     "crypto/aes"
+    "fmt"
+    client "github.com/lxc/incus/client"
     "crypto/cipher"
     "crypto/sha256"
-    "fmt"
+    "context"
+    crand "crypto/rand"
+    rand "math/rand"
+    "bytes"
     "encoding/base64"
+    "math"
     "math/big"
+    "os"
+    "sync"
+    "github.com/gorilla/mux"
+    "go.mongodb.org/mongo-driver/mongo"
 )
 
-func decrypt_password(ct string, key string, iv string) (string, error) {
+var ePlace int64
+var lxdClient client.InstanceServer
+var mydir string = "/usr/local/bin/linuxVirtualization/"
+var SERVER_IP = os.Args[1]
+var PORT_LIST = make([]int64,0,100000)
+var flag   bool
+var authFlag bool = false
+var port   string
+var portprev string = "60001"
+var cursor interface{}
+var route *mux.Router
+var route_MC *mux.Router
+var current []byte
+var current_Config []byte
+var buf bytes.Buffer
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
+var col *mongo.Collection
+var ipCol , UserCol *mongo.Collection
+var portInt int = 27020
+var portIntonePlace int = 27020
+var ctx context.Context
+var cancel context.CancelFunc
+var tag string
+var ADMIN    string = "yjlee"
+var password string = "asdfasdf"
+var ADDR string = "http://hobbies.yoonjin2.kr"
+
+// 포트 관리를 위한 뮤텍스 추가
+var portMutex sync.Mutex
+
+type UserInfo struct {
+    Username     string `json:"username"`
+    UsernameIV   string `json:"username_iv"`
+    Password     string `json:"password"`
+    PasswordIV   string `json:"password_iv"`
+    Key          string `json:"key"`
+}
+
+type ContainerInfo struct {
+    Username string `json:"username"`
+    UsernameIV string `json:"username_iv"`
+    Password string `json:"password"`
+    PasswordIV       string `json:"password_iv"`
+    Key      string `json:"key"`
+    TAG      string `json:"tag"`
+    Serverip string `json:"serverip"`
+    Serverport string `json:"serverport"`
+    VMStatus     string `json:"vmstatus"`
+}
+
+var INFO ContainerInfo
+
+func DecryptString(ct string, key string, iv string) (string, error) {
     // Key 디코딩 및 검증
     key_bytes, err := base64.StdEncoding.DecodeString(key)
     if err != nil {

@@ -1,31 +1,87 @@
 package http_request
 
+
 import (
+    client "github.com/lxc/incus/client"
     "net/http"
-    "github.com/gorilla/mux"
-    "encoding/base64"
-    "github.com/yoonjin67/lvirt_applicationUnit/crypto"
-    "github.com/yoonjin67/lvirt_applicationUnit"
-    "github.com/yoonjin67/lvirt_applicationUnit/incusUnit"
-    "encoding/json"
     "context"
+    "bytes"
+    i "github.com/yoonjin67/lvirt_applicationUnit/incusUnit"
+    "log"
+    "os"
+    "sync"
+    "time"
+
+    "github.com/gorilla/mux"
+    "go.mongodb.org/mongo-driver/mongo"
 )
 
+var ePlace int64
+var lxdClient client.InstanceServer
+var mydir string = "/usr/local/bin/linuxVirtualization/"
+var SERVER_IP = os.Args[1]
+var PORT_LIST = make([]int64,0,100000)
+var flag   bool
+var authFlag bool = false
+var port   string
+var portprev string = "60001"
+var cursor interface{}
+var route *mux.Router
+var route_MC *mux.Router
+var current []byte
+var current_Config []byte
+var buf bytes.Buffer
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
+var col *mongo.Collection
+var ipCol , UserCol *mongo.Collection
+var portInt int = 27020
+var portIntonePlace int = 27020
+var ctx context.Context
+var cancel context.CancelFunc
+var tag string
+var ADMIN    string = "yjlee"
+var password string = "asdfasdf"
+var ADDR string = "http://hobbies.yoonjin2.kr"
 
-func initHttpRequest(containerQueue *ContainerQueue) {
+// 포트 관리를 위한 뮤텍스 추가
+var portMutex sync.Mutex
+
+type UserInfo struct {
+    Username     string `json:"username"`
+    UsernameIV   string `json:"username_iv"`
+    Password     string `json:"password"`
+    PasswordIV   string `json:"password_iv"`
+    Key          string `json:"key"`
+}
+
+type ContainerInfo struct {
+    Username string `json:"username"`
+    UsernameIV string `json:"username_iv"`
+    Password string `json:"password"`
+    PasswordIV       string `json:"password_iv"`
+    Key      string `json:"key"`
+    TAG      string `json:"tag"`
+    Serverip string `json:"serverip"`
+    Serverport string `json:"serverport"`
+    VMStatus     string `json:"vmstatus"`
+}
+
+var INFO ContainerInfo
+
+func initHttpRequest(containerQueue *i.ContainerQueue) {
     containerQueue.Start(5) // 5개의 작업자 시작
     defer containerQueue.Stop()
 
     // 라우터 설정
     route = mux.NewRouter()
-    route.HandleFunc("/register", Register).Methods("POST")
-    route.HandleFunc("/create", CreateContainer).Methods("POST")
-    route.HandleFunc("/request", GetContainers).Methods("POST")
-    route.HandleFunc("/delete", DeleteByTag).Methods("POST")
-    route.HandleFunc("/stop", StopByTag).Methods("POST")
-    route.HandleFunc("/start", StartByTag).Methods("POST")
-    route.HandleFunc("/pause", PauseByTag).Methods("POST")
-    route.HandleFunc("/restart", RestartByTag).Methods("POST")
+    route.HandleFunc("/register", i.Register).Methods("POST")
+    route.HandleFunc("/create", i.CreateContainer).Methods("POST")
+    route.HandleFunc("/request", i.GetContainers).Methods("POST")
+    route.HandleFunc("/delete", i.DeleteByTag).Methods("POST")
+    route.HandleFunc("/stop", i.StopByTag).Methods("POST")
+    route.HandleFunc("/start", i.StartByTag).Methods("POST")
+    route.HandleFunc("/pause", i.PauseByTag).Methods("POST")
+    route.HandleFunc("/restart", i.RestartByTag).Methods("POST")
 
 
     // HTTP 서버 설정
@@ -42,41 +98,6 @@ func initHttpRequest(containerQueue *ContainerQueue) {
     if err := srv.ListenAndServe(); err != nil {
         log.Fatal(err)
     }
-}
-
-func Register(wr http.ResponseWriter, req *http.Request) {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    var u UserInfo
-    body, err := ioutil.ReadAll(req.Body)
-    if err != nil {
-        http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
-        return
-    }
-
-    if err := json.Unmarshal(body, &u); err != nil {
-        http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
-        return
-    }
-
-    u.Password, err = decrypt_password(u.Password, u.Key, u.PasswordIV)
-    if err != nil {
-        http.Error(wr, "Failed to decrypt password: "+err.Error(), http.StatusBadRequest)
-        return
-    }
-    u.Username, err = decrypt_password(u.Username, u.Key, u.UsernameIV)
-    if err != nil {
-        http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
-        return
-    }
-
-    if _, err := UserCol.InsertOne(ctx, u); err != nil {
-        http.Error(wr, "Failed to register user: "+err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    wr.Write([]byte("User Registration Done"))
 }
 
 

@@ -1,8 +1,121 @@
 package incusUnit
+
 import (
-    "github.com/yoonjin67/lvirt_applicationUnit"
-    "github.com/yoonjin67/lvirt_applicationUnit/crypto"
+    "fmt"
+    "container/heap"
+    client "github.com/lxc/incus/client"
+    "github.com/lxc/incus/shared/api"
+    "net/http"
+    c "github.com/yoonjin67/lvirt_applicationUnit/crypto"
+    _ "github.com/yoonjin67/lvirt_applicationUnit"
+    "context"
+    "bytes"
+    "encoding/json"
+    "io/ioutil"
+    "log"
+    "os"
+    "os/exec"
+    "strconv"
+    "sync"
+    "time"
+
+    "github.com/gorilla/mux"
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/mongo"
 )
+
+
+type UserInfo struct {
+    Username     string `json:"username"`
+    UsernameIV   string `json:"username_iv"`
+    Password     string `json:"password"`
+    PasswordIV   string `json:"password_iv"`
+    Key          string `json:"key"`
+}
+
+type ContainerInfo struct {
+    Username string `json:"username"`
+    UsernameIV string `json:"username_iv"`
+    Password string `json:"password"`
+    PasswordIV       string `json:"password_iv"`
+    Key      string `json:"key"`
+    TAG      string `json:"tag"`
+    Serverip string `json:"serverip"`
+    Serverport string `json:"serverport"`
+    VMStatus     string `json:"vmstatus"`
+}
+
+var INFO ContainerInfo
+
+
+// IntHeap은 int64 값을 저장하는 최소 힙입니다.
+type IntHeap []int
+
+// Len은 요소 개수를 반환합니다.
+func (h IntHeap) Len() int { return len(h) }
+
+// Less는 작은 값이 먼저 나오도록 정렬합니다.
+func (h IntHeap) Less(i, j int) bool { return h[i] < h[j] }
+
+// Swap은 두 요소를 교환합니다.
+func (h IntHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+
+// Push는 새로운 요소를 추가합니다.
+func (h *IntHeap) Push(x interface{}) {
+	*h = append(*h, x.(int))
+}
+
+// Pop은 최솟값을 제거하고 반환합니다.
+func (h *IntHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[:n-1]
+	return x
+}
+
+var portHeap *IntHeap
+
+var ePlace int64
+var lxdClient client.InstanceServer
+var mydir string = "/usr/local/bin/linuxVirtualization/"
+var SERVER_IP = os.Args[1]
+var PORT_LIST = make([]int64,0,100000)
+var flag   bool
+var authFlag bool = false
+var port   string
+var portprev string = "60001"
+var cursor interface{}
+var route *mux.Router
+var route_MC *mux.Router
+var current []byte
+var current_Config []byte
+var buf bytes.Buffer
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
+var col *mongo.Collection
+var ipCol , UserCol *mongo.Collection
+var portInt int = 27020
+var portIntonePlace int = 27020
+var ctx context.Context
+var cancel context.CancelFunc
+var tag string
+var ADMIN    string = "yjlee"
+var password string = "asdfasdf"
+var ADDR string = "http://hobbies.yoonjin2.kr"
+
+// 포트 관리를 위한 뮤텍스 추가
+var portMutex sync.Mutex
+
+
+// 컨테이너 생성을 위한 작업자 풀
+type ContainerQueue struct {
+    tasks chan ContainerInfo
+    wg    sync.WaitGroup
+}
+
+var containerQueue = &ContainerQueue{
+    tasks: make(chan ContainerInfo, 100), // 버퍼 크기 100으로 설정
+}
 
 func TouchFile(name string) {
     file, _ := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 0644)
@@ -16,20 +129,10 @@ func get_TAG(mydir string, user string) string {
     if err != nil {
         log.Println(tag)
     }
-    tagRet := user+"-"+RandStringBytes(20)
+    tagRet := user+"-"+c.RandStringBytes(20)
     file.Write([]byte(tagRet))
     file.Close()
     return tagRet
-}
-
-// 컨테이너 생성을 위한 작업자 풀
-type ContainerQueue struct {
-    tasks chan ContainerInfo
-    wg    sync.WaitGroup
-}
-
-var containerQueue = &ContainerQueue{
-    tasks: make(chan ContainerInfo, 100), // 버퍼 크기 100으로 설정
 }
 
 func (q *ContainerQueue) Start(numWorkers int) {
@@ -66,8 +169,8 @@ func getContainerInfo(tag string, info ContainerInfo) ContainerInfo {
 
 
 func createContainer(info ContainerInfo) {
-    username, err := decrypt_password(info.Username, info.Key, info.UsernameIV)
-    password, err := decrypt_password(info.Password, info.Key, info.PasswordIV)
+    username, err := c.DecryptString(info.Username, info.Key, info.UsernameIV)
+    password, err := c.DecryptString(info.Password, info.Key, info.PasswordIV)
     if err != nil {
         return
     }
@@ -285,12 +388,12 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
         return
     }
 
-    decodedUsername, err := decrypt_password(in.Username, in.Key, in.UsernameIV)
+    decodedUsername, err := c.DecryptString(in.Username, in.Key, in.UsernameIV)
     if err != nil {
         http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
         return
     }
-    decodedPassword, err := decrypt_password(in.Password, in.Key, in.PasswordIV)
+    decodedPassword, err := c.DecryptString(in.Password, in.Key, in.PasswordIV)
     if err != nil {
         http.Error(wr, "Failed to decrypt password: "+err.Error(), http.StatusBadRequest)
         return
@@ -311,8 +414,8 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
             log.Println("Error decoding document: ", err)
             continue
         }
-        Username, _ := decrypt_password(info.Username, info.Key, info.UsernameIV)
-        Password, _ := decrypt_password(info.Password, info.Key, info.PasswordIV)
+        Username, _ := c.DecryptString(info.Username, info.Key, info.UsernameIV)
+        Password, _ := c.DecryptString(info.Password, info.Key, info.PasswordIV)
         if Username == decodedUsername && Password == decodedPassword {
             jsonList = append(jsonList, info)
         }
@@ -327,3 +430,40 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
     wr.WriteHeader(http.StatusOK)
     wr.Write(resp)
 }
+
+func Register(wr http.ResponseWriter, req *http.Request) {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    var u UserInfo
+    body, err := ioutil.ReadAll(req.Body)
+    if err != nil {
+        http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    if err := json.Unmarshal(body, &u); err != nil {
+        http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    u.Password, err = c.DecryptString(u.Password, u.Key, u.PasswordIV)
+    if err != nil {
+        http.Error(wr, "Failed to decrypt password: "+err.Error(), http.StatusBadRequest)
+        return
+    }
+    u.Username, err = c.DecryptString(u.Username, u.Key, u.UsernameIV)
+    if err != nil {
+        http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    if _, err := UserCol.InsertOne(ctx, u); err != nil {
+        http.Error(wr, "Failed to register user: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    wr.Write([]byte("User Registration Done"))
+}
+
+
