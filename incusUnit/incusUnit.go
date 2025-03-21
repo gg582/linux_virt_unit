@@ -81,13 +81,11 @@ var portMutex sync.Mutex
 
 // 컨테이너 생성을 위한 작업자 풀
 type ContainerQueue struct {
-    tasks chan lvirt.ContainerInfo
+    Tasks chan lvirt.ContainerInfo
     wg    sync.WaitGroup
 }
 
-var WorkQueue = &ContainerQueue{
-    tasks: make(chan lvirt.ContainerInfo, 100), // 버퍼 크기 100으로 설정
-}
+var WorkQueue *ContainerQueue
 
 func TouchFile(name string) {
     file, _ := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 0644)
@@ -115,13 +113,13 @@ func (q *ContainerQueue) Start(numWorkers int) {
 }
 
 func (q *ContainerQueue) Stop() {
-    close(q.tasks)
+    close(q.Tasks)
     q.wg.Wait()
 }
 
 func (q *ContainerQueue) worker() {
     defer q.wg.Done()
-    for info := range q.tasks {
+    for info := range q.Tasks {
         createContainer(info)
     }
 }
@@ -204,7 +202,7 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     }
 
     select {
-    case WorkQueue.tasks <- info:
+    case WorkQueue.Tasks <- info:
         string_Reply, _ := json.Marshal(info)
         wr.Write(string_Reply)
     default:
