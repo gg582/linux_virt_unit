@@ -19,7 +19,7 @@ import (
 )
 
 var ePlace int64
-var lxdClient client.InstanceServer
+var IncusCli client.InstanceServer
 var mydir string = "/usr/local/bin/linuxVirtualization/"
 var SERVER_IP = os.Args[1]
 var PORT_LIST = make([]int64,0,100000)

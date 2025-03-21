@@ -17,7 +17,7 @@ import (
 )
 
 var ePlace int64
-var lxdClient client.InstanceServer
+var IncusCli client.InstanceServer
 var mydir string = "/usr/local/bin/linuxVirtualization/"
 var SERVER_IP = os.Args[1]
 var PORT_LIST = make([]int64,0,100000)
@@ -68,9 +68,9 @@ type ContainerInfo struct {
 
 var INFO ContainerInfo
 
-func InitHttpRequest(containerQueue *i.ContainerQueue) {
-    containerQueue.Start(5) // 5개의 작업자 시작
-    defer containerQueue.Stop()
+func InitHttpRequest(WorkQueue *i.ContainerQueue) {
+    WorkQueue.Start(5) // 5개의 작업자 시작
+    defer WorkQueue.Stop()
 
     // 라우터 설정
     route = mux.NewRouter()

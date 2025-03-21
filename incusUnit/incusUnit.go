@@ -74,10 +74,10 @@ func (h *IntHeap) Pop() interface{} {
 	return x
 }
 
-var portHeap *IntHeap
+var PortHeap *IntHeap
 
 var ePlace int64
-var lxdClient client.InstanceServer
+var IncusCli client.InstanceServer
 var mydir string = "/usr/local/bin/linuxVirtualization/"
 var SERVER_IP = os.Args[1]
 var PORT_LIST = make([]int64,0,100000)
@@ -113,7 +113,7 @@ type ContainerQueue struct {
     wg    sync.WaitGroup
 }
 
-var containerQueue = &ContainerQueue{
+var WorkQueue = &ContainerQueue{
     tasks: make(chan ContainerInfo, 100), // 버퍼 크기 100으로 설정
 }
 
@@ -155,7 +155,7 @@ func (q *ContainerQueue) worker() {
 }
 
 func getContainerInfo(tag string, info ContainerInfo) ContainerInfo {
-     state, _, err := lxdClient.GetInstanceState(tag)
+     state, _, err := IncusCli.GetInstanceState(tag)
      if err != nil {
          log.Println("failed to get instance state")
      }
@@ -178,12 +178,12 @@ func createContainer(info ContainerInfo) {
     info.TAG = tag
 
     portMutex.Lock()
-    if portHeap.Len() == 0 {
+    if PortHeap.Len() == 0 {
         port := strconv.Itoa(portInt + 3)
         log.Println("/container_creation.sh " + tag + " " + port + " " + username +  " " + password)
         portInt += 3
     } else {
-        port := strconv.Itoa(heap.Pop(portHeap).(int))
+        port := strconv.Itoa(heap.Pop(PortHeap).(int))
         log.Println("/container_creation.sh " + tag + " " + port + " " + username +  " " + password)
     }
     portMutex.Unlock()
@@ -232,7 +232,7 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     }
 
     select {
-    case containerQueue.tasks <- info:
+    case WorkQueue.tasks <- info:
         string_Reply, _ := json.Marshal(info)
         wr.Write(string_Reply)
     default:
@@ -254,7 +254,7 @@ func ChangeState(tag string, state string) {
         Action: state,
     }
 
-    _, err := lxdClient.UpdateInstanceState(tag, req, "")
+    _, err := IncusCli.UpdateInstanceState(tag, req, "")
     if err != nil {
         log.Fatalf("Container state change failed: %v", err)
     }
@@ -350,7 +350,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
             
             portMutex.Lock()
             PORT_LIST = DeleteFromListByValue(PORT_LIST, int64(p))
-            heap.Push(portHeap, int64(p))
+            heap.Push(PortHeap, int64(p))
             portMutex.Unlock()
 
             if _, err := ipCol.DeleteOne(ctx, cur.Current); err != nil {
