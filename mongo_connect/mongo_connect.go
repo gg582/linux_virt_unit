@@ -94,7 +94,7 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
 }
 
 
-func initMongoDB() {
+func InitMongoDB() {
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
