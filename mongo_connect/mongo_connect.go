@@ -94,26 +94,36 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
 }
 
 
+var MongoClient *mongo.Client // 전역 변수로 선언
+
 func InitMongoDB() {
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
-    // MongoDB 연결 설정
-    clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-    client, err := mongo.Connect(ctx, clientOptions)
+    var err error
+    MongoClient, err = mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
     if err != nil {
         log.Fatal(err)
     }
-    defer client.Disconnect(ctx)
 
-    // MongoDB 연결 테스트
-    err = client.Ping(ctx, nil)
+    // 연결 테스트
+    err = MongoClient.Ping(ctx, nil)
     if err != nil {
         log.Fatal(err)
     }
 
     // 컬렉션 초기화
-    lvirt.Colct = client.Database("MC_Json").Collection("Flag Collections")
-    lvirt.AddrCol = client.Database("MC_IP").Collection("IP Collections")
-    lvirt.UserCol = client.Database("MC_USER").Collection("User Collections")
+    lvirt.Colct = MongoClient.Database("MC_Json").Collection("Flag Collections")
+    lvirt.AddrCol = MongoClient.Database("MC_IP").Collection("IP Collections")
+    lvirt.UserCol = MongoClient.Database("MC_USER").Collection("User Collections")
+
+    log.Println("MongoDB 연결 성공")
 }
+
+func CloseMongoDB() {
+    if MongoClient != nil {
+        MongoClient.Disconnect(context.Background())
+        log.Println("MongoDB 연결 종료")
+    }
+}
+
