@@ -92,15 +92,13 @@ var current []byte
 var current_Config []byte
 var buf bytes.Buffer
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
-var col *mongo.Collection
-var ipCol , UserCol *mongo.Collection
+var Colct *mongo.Collection
+var AddrCol , UserCol *mongo.Collection
 var portInt int = 27020
 var portIntonePlace int = 27020
 var ctx context.Context
 var cancel context.CancelFunc
 var tag string
-var ADMIN    string = "yjlee"
-var password string = "asdfasdf"
 var ADDR string = "http://hobbies.yoonjin2.kr"
 
 // 포트 관리를 위한 뮤텍스 추가
@@ -213,7 +211,7 @@ func createContainer(info ContainerInfo) {
 
     info = getContainerInfo(tag, info)
 
-    ipRes, insertErr := ipCol.InsertOne(ctx, info)
+    ipRes, insertErr := AddrCol.InsertOne(ctx, info)
     if insertErr != nil {
         log.Println("Cannot insert container IP into MongoDB")
     } else {
@@ -328,7 +326,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     stringForTag := string(forTag)
     cmdDelete := exec.CommandContext(ctx, "/bin/bash", "delete_container.sh "+stringForTag)
 
-    cur, err := ipCol.Find(ctx, bson.D{{}})
+    cur, err := AddrCol.Find(ctx, bson.D{{}})
     if err != nil {
         http.Error(wr, err.Error(), http.StatusInternalServerError)
         return
@@ -353,7 +351,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
             heap.Push(PortHeap, int64(p))
             portMutex.Unlock()
 
-            if _, err := ipCol.DeleteOne(ctx, cur.Current); err != nil {
+            if _, err := AddrCol.DeleteOne(ctx, cur.Current); err != nil {
                 log.Printf("Error deleting container from database: %v", err)
             }
 
@@ -399,7 +397,7 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
         return
     }
 
-    cur, err := ipCol.Find(ctx, bson.D{{}})
+    cur, err := AddrCol.Find(ctx, bson.D{{}})
     if err != nil {
         log.Println("Error on finding information: ", err)
         http.Error(wr, "Database error: "+err.Error(), http.StatusInternalServerError)

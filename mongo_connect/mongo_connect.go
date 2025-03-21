@@ -1,78 +1,24 @@
 package mongo_connect
 
 import (
-    client "github.com/lxc/incus/client"
+    i      "github.com/yoonjin67/lvirt_applicationUnit/incusUnit"
     "net/http"
     "context"
-    "bytes"
     "encoding/json"
     "io/ioutil"
     "log"
-    "os"
-    "sync"
     "time"
-
-    "github.com/gorilla/mux"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var ePlace int64
-var IncusCli client.InstanceServer
-var mydir string = "/usr/local/bin/linuxVirtualization/"
-var SERVER_IP = os.Args[1]
-var PORT_LIST = make([]int64,0,100000)
-var flag   bool
-var authFlag bool = false
-var port   string
-var portprev string = "60001"
-var cursor interface{}
-var route *mux.Router
-var route_MC *mux.Router
-var current []byte
-var current_Config []byte
-var buf bytes.Buffer
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
-var col *mongo.Collection
-var ipCol , UserCol *mongo.Collection
-var portInt int = 27020
-var portIntonePlace int = 27020
-var ctx context.Context
-var cancel context.CancelFunc
-var tag string
 var ADMIN    string = "yjlee"
 var password string = "asdfasdf"
-var ADDR string = "http://hobbies.yoonjin2.kr"
-
-// 포트 관리를 위한 뮤텍스 추가
-var portMutex sync.Mutex
-
-type UserInfo struct {
-    Username     string `json:"username"`
-    UsernameIV   string `json:"username_iv"`
-    Password     string `json:"password"`
-    PasswordIV   string `json:"password_iv"`
-    Key          string `json:"key"`
-}
-
-type ContainerInfo struct {
-    Username string `json:"username"`
-    UsernameIV string `json:"username_iv"`
-    Password string `json:"password"`
-    PasswordIV       string `json:"password_iv"`
-    Key      string `json:"key"`
-    TAG      string `json:"tag"`
-    Serverip string `json:"serverip"`
-    Serverport string `json:"serverport"`
-    VMStatus     string `json:"vmstatus"`
-}
-
-var INFO ContainerInfo
 
 
 func botCheck(u string, pw string) bool {
-    cur, err := UserCol.Find(context.Background(), bson.D{{}})
+    cur, err := i.UserCol.Find(context.Background(), bson.D{{}})
     if err != nil {
         log.Printf("Database query error: %v", err)
         return true
@@ -84,7 +30,7 @@ func botCheck(u string, pw string) bool {
         if err != nil {
             continue
         }
-        var i UserInfo
+        var i i.UserInfo
         if err := json.Unmarshal(current, &i); err != nil {
             continue
         }
@@ -109,7 +55,7 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
 
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
     
-    var in UserInfo
+    var in i.UserInfo
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(wr, err.Error(), http.StatusBadRequest)
@@ -122,16 +68,16 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
     }
 
     filter := bson.M{"username": in.Username, "password": in.Password}
-    cur, err := ipCol.Find(ctx, filter)
+    cur, err := i.AddrCol.Find(ctx, filter)
     if err != nil {
         http.Error(wr, err.Error(), http.StatusInternalServerError)
         return
     }
     defer cur.Close(ctx)
 
-    var results []ContainerInfo
+    var results []i.ContainerInfo
     for cur.Next(ctx) {
-        var info ContainerInfo
+        var info i.ContainerInfo
         if err := cur.Decode(&info); err != nil {
             continue
         }
@@ -149,7 +95,7 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
 
 
 func initMongoDB() {
-    ctx, cancel = context.WithCancel(context.Background())
+    ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
     // MongoDB 연결 설정
@@ -167,7 +113,7 @@ func initMongoDB() {
     }
 
     // 컬렉션 초기화
-    col = client.Database("MC_Json").Collection("Flag Collections")
-    ipCol = client.Database("MC_IP").Collection("IP Collections")
-    UserCol = client.Database("MC_USER").Collection("User Collections")
+    i.Colct = client.Database("MC_Json").Collection("Flag Collections")
+    i.AddrCol = client.Database("MC_IP").Collection("IP Collections")
+    i.UserCol = client.Database("MC_USER").Collection("User Collections")
 }
