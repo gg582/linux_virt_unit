@@ -183,7 +183,6 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
         return
     }
 
-    mcEXEC := exec.CommandContext(ctx, "/bin/bash", "-c",  "init_server.sh " +tag)
     mcEXEC.Stdout = os.Stdout
     mcEXEC.Stderr = os.Stderr
     if err := mcEXEC.Run(); err != nil {
