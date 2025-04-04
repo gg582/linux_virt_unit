@@ -14,7 +14,7 @@ import (
 // 포트 관리를 위한 뮤텍스 추가
 var portMutex sync.Mutex
 
-func InitHttpRequest(WorkQueue *incus_unit.ContainerQueue) {
+func InitHttpRequest() {
 
 
     // 라우터 설정
