@@ -183,13 +183,6 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
         return
     }
 
-    cmdCreate.Stdout = os.Stdout
-    cmdCreate.Stderr = os.Stderr
-    if err := cmdCreate.Run(); err != nil {
-        log.Printf("Error initializing server: %v", err)
-        return
-    }
-
     info = GetContainerInfo(tag, info)
 
     ipRes, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
