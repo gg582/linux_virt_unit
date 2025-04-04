@@ -182,6 +182,7 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
         log.Printf("Error creating container: %v", err)
         return
     }
+    cmdCreate.Wait()
 
     info = GetContainerInfo(tag, info)
 
