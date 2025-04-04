@@ -3,6 +3,7 @@ package incus_unit
 import (
     "fmt"
     "container/heap"
+    "strings"
     client "github.com/lxc/incus/client"
     "github.com/lxc/incus/shared/api"
     "net/http"
