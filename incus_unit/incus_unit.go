@@ -298,9 +298,6 @@ func StartByTag(wr http.ResponseWriter, req *http.Request) {
 }
 
 func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
-    ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-    defer cancel()
-
     forTag, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(wr, err.Error(), http.StatusBadRequest)
@@ -316,9 +313,9 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
         http.Error(wr, err.Error(), http.StatusInternalServerError)
         return
     }
-    defer cur.Close(ctx)
+    defer cur.Close(context.Background())
 
-    for cur.Next(ctx) {
+    for cur.Next(context.Background()) {
         resp, err := bson.MarshalExtJSON(cur.Current, false, false)
         if err != nil {
             continue
@@ -336,7 +333,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
             heap.Push(PortHeap, int64(p))
             portMutex.Unlock()
 
-            if _, err := db.ContainerInfoCollection.DeleteOne(ctx, cur.Current); err != nil {
+            if _, err := db.ContainerInfoCollection.DeleteOne(context.Background(), cur.Current); err != nil {
                 log.Printf("Error deleting container from database: %v", err)
             }
 
@@ -347,6 +344,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
                 http.Error(wr, "Failed to delete container", http.StatusInternalServerError)
                 return
             }
+            cmdDelete.Wait()
             return
         }
     }
