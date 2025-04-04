@@ -14,7 +14,7 @@ import (
 // 포트 관리를 위한 뮤텍스 추가
 var portMutex sync.Mutex
 
-func InitHttpRequest(WorkQueue *i.ContainerQueue) {
+func InitHttpRequest(WorkQueue *incus_unit.ContainerQueue) {
 
     incus_unit.WorkQueue.Start(5) // 5개의 작업자 시작
     defer incus_unit.WorkQueue.Stop()

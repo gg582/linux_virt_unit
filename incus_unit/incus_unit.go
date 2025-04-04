@@ -24,7 +24,7 @@ import (
 )
 
 
-var INFO lvirt.ContainerInfo
+var INFO linux_virt_unit.ContainerInfo
 
 
 // IntHeap은 int64 값을 저장하는 최소 힙입니다.
@@ -82,7 +82,7 @@ var portMutex sync.Mutex
 
 // 컨테이너 생성을 위한 작업자 풀
 type ContainerQueue struct {
-    Tasks chan lvirt.ContainerInfo
+    Tasks chan linux_virt_unit.ContainerInfo
     wg    sync.WaitGroup
 }
 
@@ -100,7 +100,7 @@ func get_TAG(mydir string, user string) string {
     if err != nil {
         log.Println(tag)
     }
-    tagRet := user+"-"+c.RandStringBytes(20)
+    tagRet := user+"-"+linux_virt_unit_crypto.RandStringBytes(20)
     file.Write([]byte(tagRet))
     file.Close()
     return tagRet
@@ -125,7 +125,7 @@ func (q *ContainerQueue) worker() {
     }
 }
 
-func GetContainerInfo(tag string, info lvirt.ContainerInfo) lvirt.ContainerInfo {
+func GetContainerInfo(tag string, info linux_virt_unit.ContainerInfo) linux_virt_unit.ContainerInfo {
      state, _, err := IncusCli.GetInstanceState(tag)
      if err != nil {
          log.Println("failed to get instance state")
@@ -139,9 +139,9 @@ func GetContainerInfo(tag string, info lvirt.ContainerInfo) lvirt.ContainerInfo 
 }
 
 
-func createContainer(info lvirt.ContainerInfo) {
-    username, err := c.DecryptString(info.Username, info.Key, info.UsernameIV)
-    password, err := c.DecryptString(info.Password, info.Key, info.PasswordIV)
+func createContainer(info linux_virt_unit.ContainerInfo) {
+    username, err := linux_virt_unit_crypto.DecryptString(info.Username, info.Key, info.UsernameIV)
+    password, err := linux_virt_unit_crypto.DecryptString(info.Password, info.Key, info.PasswordIV)
     if err != nil {
         return
     }
@@ -184,11 +184,7 @@ func createContainer(info lvirt.ContainerInfo) {
 
     info = GetContainerInfo(tag, info)
 
-    if info != nil {
-        ipRes, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
-    } else {
-        log.Println("Info is nil??");
-    }
+    ipRes, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
     if insertErr != nil {
         log.Println("Cannot insert container IP into MongoDB")
     } else {
@@ -200,7 +196,7 @@ func createContainer(info lvirt.ContainerInfo) {
 func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-    var info lvirt.ContainerInfo
+    var info linux_virt_unit.ContainerInfo
     if err := json.NewDecoder(req.Body).Decode(&info); err != nil {
         http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
         return
@@ -328,7 +324,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
             heap.Push(PortHeap, int64(p))
             portMutex.Unlock()
 
-            if _, err := lvirt.AddrCol.DeleteOne(ctx, cur.Current); err != nil {
+            if _, err := db.ContainerInfoCollection.DeleteOne(ctx, cur.Current); err != nil {
                 log.Printf("Error deleting container from database: %v", err)
             }
 
@@ -362,18 +358,18 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
         return
     }
 
-    decodedUsername, err := c.DecryptString(in.Username, in.Key, in.UsernameIV)
+    decodedUsername, err := linux_virt_unit_crypto.DecryptString(in.Username, in.Key, in.UsernameIV)
     if err != nil {
         http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
         return
     }
-    decodedPassword, err := c.DecryptString(in.Password, in.Key, in.PasswordIV)
+    decodedPassword, err := linux_virt_unit_crypto.DecryptString(in.Password, in.Key, in.PasswordIV)
     if err != nil {
         http.Error(wr, "Failed to decrypt password: "+err.Error(), http.StatusBadRequest)
         return
     }
 
-    cur, err := lvirt.AddrCol.Find(ctx, bson.D{{}})
+    cur, err := db.ContainerInfoCollection.Find(ctx, bson.D{{}})
     if err != nil {
         log.Println("Error on finding information: ", err)
         http.Error(wr, "Database error: "+err.Error(), http.StatusInternalServerError)
@@ -383,13 +379,13 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
 
     jsonList := make([]interface{}, 0, 100000)
     for cur.Next(ctx) {
-        var info lvirt.ContainerInfo
+        var info linux_virt_unit.ContainerInfo
         if err := cur.Decode(&info); err != nil {
             log.Println("Error decoding document: ", err)
             continue
         }
-        Username, _ := c.DecryptString(info.Username, info.Key, info.UsernameIV)
-        Password, _ := c.DecryptString(info.Password, info.Key, info.PasswordIV)
+        Username, _ := linux_virt_unit_crypto.DecryptString(info.Username, info.Key, info.UsernameIV)
+        Password, _ := linux_virt_unit_crypto.DecryptString(info.Password, info.Key, info.PasswordIV)
         if Username == decodedUsername && Password == decodedPassword {
             jsonList = append(jsonList, info)
         }
@@ -409,7 +405,7 @@ func Register(wr http.ResponseWriter, req *http.Request) {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    var u lvirt.UserInfo
+    var u linux_virt_unit.UserInfo
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
@@ -421,18 +417,18 @@ func Register(wr http.ResponseWriter, req *http.Request) {
         return
     }
 
-    u.Password, err = c.DecryptString(u.Password, u.Key, u.PasswordIV)
+    u.Password, err = linux_virt_unit_crypto.DecryptString(u.Password, u.Key, u.PasswordIV)
     if err != nil {
         http.Error(wr, "Failed to decrypt password: "+err.Error(), http.StatusBadRequest)
         return
     }
-    u.Username, err = c.DecryptString(u.Username, u.Key, u.UsernameIV)
+    u.Username, err = linux_virt_unit_crypto.DecryptString(u.Username, u.Key, u.UsernameIV)
     if err != nil {
         http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
         return
     }
 
-    if _, err := lvirt.UserCol.InsertOne(ctx, u); err != nil {
+    if _, err := db.UserInfoCollection.InsertOne(ctx, u); err != nil {
         http.Error(wr, "Failed to register user: "+err.Error(), http.StatusInternalServerError)
         return
     }
