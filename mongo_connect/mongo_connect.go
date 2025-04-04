@@ -19,7 +19,6 @@ var MongoClient *mongo.Client // 전역 변수로 선언
 var INFO linux_virt_unit.ContainerInfo
 
 
-
 func botCheck(u string, pw string) bool {
     cur, err := lvirt.UserCol.Find(context.Background(), bson.D{{}})
     if err != nil {
@@ -44,12 +43,6 @@ func botCheck(u string, pw string) bool {
     return true
 }
 
-func check(u string, pw string) bool {
-    if (u == ADMIN) && !botCheck(u, pw) {
-        return true
-    }
-    return false
-}
 
 
 func UseContainer(wr http.ResponseWriter, req *http.Request) {
