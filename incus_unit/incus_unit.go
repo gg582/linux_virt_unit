@@ -213,6 +213,28 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     }
 }
 
+func DeleteContainerByName(tag string) error {
+    // local Incus 서버에 연결 (유닉스 소켓)
+    // 컨테이너 존재 확인
+    container, _, err := IncusCli.GetInstance(tag)
+    if err != nil {
+        return fmt.Errorf("failed to get container: %w", err)
+    }
+
+    // 컨테이너가 실행 중이면 멈춤
+    if container.Status != "Stopped" {
+        ChangeState(tag, "stop")
+    }
+
+    // 컨테이너 삭제
+    op, err := IncusCli.DeleteInstance(tag)
+    if err != nil {
+        return fmt.Errorf("failed to delete container: %w", err)
+    }
+
+    return op.Wait()
+}
+
 func DeleteFromListByValue(slice []int64, value int64) []int64 {
     for i, itm := range slice {
         if itm == value {
@@ -334,16 +356,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
                 log.Printf("Error deleting container from database: %v", err)
             }
     
-            cmdDelete := exec.Command("/bin/bash", "delete_container.sh", stringForTag)
-            cmdDelete.Stdout = os.Stdout
-            cmdDelete.Stderr = os.Stderr
-    
-            if err := cmdDelete.Run(); err != nil {
-                log.Printf("Error deleting container: %v", err)
-                http.Error(wr, "Failed to delete container", http.StatusInternalServerError)
-                return
-            }
-    
+            DeleteContainerByName(stringForTag)
             return
         }
     }
