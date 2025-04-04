@@ -40,9 +40,14 @@ func InitHttpRequest() {
 
     // 서버 시작
     log.Printf("Starting server on port 32000")
-    if err := srv.ListenAndServe(); err != nil {
-        log.Fatal(err)
-    }
+    go func() {
+        log.Printf("Starting server on port 32000")
+        if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+            log.Printf("HTTP server ListenAndServe error: %v", err)
+        } else {
+            log.Println("HTTP server stopped gracefully.")
+        }
+    }()
 }
 
 
