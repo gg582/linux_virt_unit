@@ -88,7 +88,7 @@ type ContainerQueue struct {
 
 var WorkQueue *ContainerQueue
 
-func init() {
+func InitWorkQueue() {
     WorkQueue = &ContainerQueue{
         Tasks: make(chan linux_virt_unit.ContainerInfo, 1024),
         wg:    sync.WaitGroup{},
