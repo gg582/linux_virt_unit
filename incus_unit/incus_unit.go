@@ -223,6 +223,7 @@ func DeleteFromListByValue(slice []int64, value int64) []int64 {
 }
 
 func ChangeState(tag string, state string) {
+    log.Println("ChangeState: Tag is ", tag)
     req := api.InstanceStatePut{
         Action: state,
     }
