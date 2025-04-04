@@ -86,9 +86,15 @@ type ContainerQueue struct {
     wg    sync.WaitGroup
 }
 
-var WorkQueue *ContainerQueue = &ContainerQueue{
-    Tasks: make(chan ContainerInfo, 100),
+var WorkQueue *ContainerQueue
+
+func init() {
+    WorkQueue = &ContainerQueue{
+        Tasks: make(chan linux_virt_unit.ContainerInfo, 1024),
+        wg:    sync.WaitGroup{},
+    }
 }
+
 
 func TouchFile(name string) {
     file, _ := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 0644)
