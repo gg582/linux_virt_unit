@@ -306,7 +306,6 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
 
     stringForTag := string(forTag)
     stringForTag = strings.Trim(stringForTag, "\"")
-    cmdDelete := exec.CommandContext(context.Background(), "/bin/bash", "delete_container.sh "+stringForTag)
 
     cur, err := db.ContainerInfoCollection.Find(context.Background(), bson.D{{}})
     if err != nil {
@@ -316,35 +315,35 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     defer cur.Close(context.Background())
 
     for cur.Next(context.Background()) {
-        resp, err := bson.MarshalExtJSON(cur.Current, false, false)
-        if err != nil {
-            continue
-        }
         var INFO linux_virt_unit.ContainerInfo
-        if err := json.Unmarshal(resp, &INFO); err != nil {
+        if err := cur.Decode(&INFO); err != nil {
             continue
         }
+    
         if INFO.TAG == stringForTag {
             p32, _ := strconv.Atoi(INFO.Serverport)
             p := int(p32)
-            
+    
             portMutex.Lock()
             PORT_LIST = DeleteFromListByValue(PORT_LIST, int64(p))
             heap.Push(PortHeap, int64(p))
             portMutex.Unlock()
-
-            if _, err := db.ContainerInfoCollection.DeleteOne(context.Background(), cur.Current); err != nil {
+    
+            filter := bson.M{"tag": stringForTag}
+            if _, err := db.ContainerInfoCollection.DeleteOne(context.Background(), filter); err != nil {
                 log.Printf("Error deleting container from database: %v", err)
             }
-
+    
+            cmdDelete := exec.CommandContext(context.Background(), "/bin/bash", "delete_container.sh", stringForTag)
             cmdDelete.Stdout = os.Stdout
             cmdDelete.Stderr = os.Stderr
+    
             if err := cmdDelete.Run(); err != nil {
                 log.Printf("Error deleting container: %v", err)
                 http.Error(wr, "Failed to delete container", http.StatusInternalServerError)
                 return
             }
-            cmdDelete.Wait()
+    
             return
         }
     }
