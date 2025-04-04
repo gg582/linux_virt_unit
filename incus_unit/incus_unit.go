@@ -251,7 +251,7 @@ func StopByTag(wr http.ResponseWriter, req *http.Request) {
     //cmdStop := exec.CommandContext(ctx, "/bin/bash", "-c", "stop.sh " +stringForStopTask)
     //cmdStop.Run()
     stringForTag := string(forTag)
-    stringForTag = strings.Trim(stringsForTag, "\"")
+    stringForTag = strings.Trim(stringForTag, "\"")
     ChangeState(stringForTag, "stop")
 }
 
@@ -265,7 +265,7 @@ func RestartByTag(wr http.ResponseWriter, req *http.Request) {
 
     log.Println("Received TAG:" + string(forTag))
     stringForTag := string(forTag)
-    stringForTag = strings.Trim(stringsForTag, "\"")
+    stringForTag = strings.Trim(stringForTag, "\"")
     ChangeState(stringForTag, "restart")
 
 }
@@ -280,7 +280,7 @@ func PauseByTag(wr http.ResponseWriter, req *http.Request) {
 
     log.Println("Received TAG:" + string(forTag))
     stringForTag := string(forTag)
-    stringForTag = strings.Trim(stringsForTag, "\"")
+    stringForTag = strings.Trim(stringForTag, "\"")
     ChangeState(stringForTag, "freeze")
 
 }
@@ -295,8 +295,8 @@ func StartByTag(wr http.ResponseWriter, req *http.Request) {
 
     log.Println("Received TAG:" + string(forTag))
     stringForTag := string(forTag)
-    stringForTag = strings.Trim(stringsForTag, "\"")
-    ChangeState(stringsForTag, "start")
+    stringForTag = strings.Trim(stringForTag, "\"")
+    ChangeState(stringForTag, "start")
     //stringForStartTask := string(forTag)
     //cmdStart := exec.CommandContext(ctx, "/bin/bash", "-c", "start.sh "+stringForStartTask)
     //cmdStart.Run()
@@ -314,7 +314,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     }
 
     stringForTag := string(forTag)
-    stringForTag = strings.Trim(stringsForTag, "\"")
+    stringForTag = strings.Trim(stringForTag, "\"")
     cmdDelete := exec.CommandContext(context.Background(), "/bin/bash", "delete_container.sh "+stringForTag)
 
     cur, err := db.ContainerInfoCollection.Find(context.Background(), bson.D{{}})
