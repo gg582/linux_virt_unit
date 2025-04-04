@@ -19,7 +19,7 @@ var INFO linux_virt_unit.ContainerInfo
 
 
 func botCheck(u string, pw string) bool {
-    cur, err := lvirt.UserCol.Find(context.Background(), bson.D{{}})
+    cur, err := UserInfoCollection.Find(context.Background(), bson.D{{}})
     if err != nil {
         log.Printf("Database query error: %v", err)
         return true
@@ -89,7 +89,6 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
 }
 
 
-var MongoClient *mongo.Client // 전역 변수로 선언
 
 func InitMongoDB() {
     ctx, cancel := context.WithCancel(context.Background())
@@ -108,7 +107,7 @@ func InitMongoDB() {
     }
 
     // 컬렉션 초기화
-    ContainerInfoCollection = MongoClient.Database("MC_IP").Collection("IP Collections")
+    ContainerInfoCollection = MongoClient.Database("MC_IP").Collection("Container Info Collections")
     UserInfoCollection = MongoClient.Database("MC_USER").Collection("User Collections")
 
     log.Println("MongoDB Connected")
