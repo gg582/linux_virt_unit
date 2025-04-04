@@ -16,8 +16,6 @@ var portMutex sync.Mutex
 
 func InitHttpRequest(WorkQueue *incus_unit.ContainerQueue) {
 
-    incus_unit.WorkQueue.Start(5) // 5개의 작업자 시작
-    defer incus_unit.WorkQueue.Stop()
 
     // 라우터 설정
     linux_virt_unit.LinuxVirtualizationAPIRouter = mux.NewRouter()
