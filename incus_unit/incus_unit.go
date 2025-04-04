@@ -1,4 +1,4 @@
-package incusUnit
+package incus_unit
 
 import (
     "fmt"

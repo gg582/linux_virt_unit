@@ -1,9 +1,10 @@
-module github.com/yoonjin67/lvirt_applicationUnit
+module github.com/yoonjin67/linux_virt_unit
 
 go 1.22.2
 
 require (
 	github.com/gorilla/mux v1.8.1
+	github.com/lxc/incus v0.7.0
 	go.mongodb.org/mongo-driver v1.17.3
 )
 
@@ -16,7 +17,6 @@ require (
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/kr/fs v0.1.0 // indirect
-	github.com/lxc/incus v0.7.0 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/muhlemmer/gu v0.3.1 // indirect
 	github.com/pkg/sftp v1.13.6 // indirect

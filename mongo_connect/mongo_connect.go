@@ -1,7 +1,6 @@
 package mongo_connect
 
 import (
-    lvirt "github.com/yoonjin67/lvirt_applicationUnit"
     "net/http"
     "context"
     "encoding/json"

@@ -1,4 +1,4 @@
-package lvirt_applicationUnit
+package linux_virt_unit
 
 import (
     "github.com/gorilla/mux"
