@@ -86,7 +86,9 @@ type ContainerQueue struct {
     wg    sync.WaitGroup
 }
 
-var WorkQueue *ContainerQueue
+var WorkQueue *ContainerQueue = &ContainerQueue{
+    Tasks: make(chan ContainerInfo, 100),
+}
 
 func TouchFile(name string) {
     file, _ := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 0644)
