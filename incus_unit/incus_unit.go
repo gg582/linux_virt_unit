@@ -334,7 +334,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
                 log.Printf("Error deleting container from database: %v", err)
             }
     
-            cmdDelete := exec.CommandContext(context.Background(), "/bin/bash", "delete_container.sh", stringForTag)
+            cmdDelete := exec.Command("/bin/bash", "delete_container.sh", stringForTag)
             cmdDelete.Stdout = os.Stdout
             cmdDelete.Stderr = os.Stderr
     
