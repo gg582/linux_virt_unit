@@ -183,9 +183,9 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
         return
     }
 
-    mcEXEC.Stdout = os.Stdout
-    mcEXEC.Stderr = os.Stderr
-    if err := mcEXEC.Run(); err != nil {
+    cmdCreate.Stdout = os.Stdout
+    cmdCreate.Stderr = os.Stderr
+    if err := cmdCreate.Run(); err != nil {
         log.Printf("Error initializing server: %v", err)
         return
     }
