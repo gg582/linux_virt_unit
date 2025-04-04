@@ -2,7 +2,6 @@ package lvirt_applicationUnit
 
 import (
     "github.com/gorilla/mux"
-    "go.mongodb.org/mongo-driver/mongo"
 )
 
 type UserInfo struct {
