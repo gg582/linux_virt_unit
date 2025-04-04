@@ -11,10 +11,13 @@ import (
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
+    linux_virt_unit "github.com/yoonjin67/linux_virt_unit"
 )
 
-var ADMIN    string = "yjlee"
-var password string = "asdfasdf"
+var ContainerInfoCollection, UserInfoCollection *mongo.Collection
+var MongoClient *mongo.Client // 전역 변수로 선언
+var INFO linux_virt_unit.ContainerInfo
+
 
 
 func botCheck(u string, pw string) bool {
@@ -30,7 +33,7 @@ func botCheck(u string, pw string) bool {
         if err != nil {
             continue
         }
-        var i lvirt.UserInfo
+        var i linux_virt_unit.UserInfo
         if err := json.Unmarshal(current, &i); err != nil {
             continue
         }
@@ -55,7 +58,7 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
 
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
     
-    var in lvirt.UserInfo
+    var in linux_virt_unit.UserInfo
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(wr, err.Error(), http.StatusBadRequest)
@@ -68,16 +71,16 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
     }
 
     filter := bson.M{"username": in.Username, "password": in.Password}
-    cur, err := lvirt.AddrCol.Find(ctx, filter)
+    cur, err := ContainerInfoCollection.Find(ctx, filter)
     if err != nil {
         http.Error(wr, err.Error(), http.StatusInternalServerError)
         return
     }
     defer cur.Close(ctx)
 
-    var results []lvirt.ContainerInfo
+    var results []linux_virt_unit.ContainerInfo
     for cur.Next(ctx) {
-        var info lvirt.ContainerInfo
+        var info linux_virt_unit.ContainerInfo
         if err := cur.Decode(&info); err != nil {
             continue
         }
@@ -107,15 +110,14 @@ func InitMongoDB() {
     }
 
     // 연결 테스트
-    err = MongoClient.Ping(ctx, nil)
+    err = MongoClient.Ping(context.Background(), nil)
     if err != nil {
         log.Fatal(err)
     }
 
     // 컬렉션 초기화
-    lvirt.Colct = MongoClient.Database("MC_Json").Collection("Flag Collections")
-    lvirt.AddrCol = MongoClient.Database("MC_IP").Collection("IP Collections")
-    lvirt.UserCol = MongoClient.Database("MC_USER").Collection("User Collections")
+    ContainerInfoCollection = MongoClient.Database("MC_IP").Collection("IP Collections")
+    UserInfoCollection = MongoClient.Database("MC_USER").Collection("User Collections")
 
     log.Println("MongoDB 연결 성공")
 }

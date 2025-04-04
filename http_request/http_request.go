@@ -3,9 +3,8 @@ package http_request
 
 import (
     "net/http"
-    i "github.com/yoonjin67/lvirt_applicationUnit/incusUnit"
-    lvirt "github.com/yoonjin67/lvirt_applicationUnit"
-    db "github.com/yoonjin67/lvirt_applicationUnit/mongo_connect"
+    "github.com/yoonjin67/linux_virt_unit/incus_unit"
+    linux_virt_unit "github.com/yoonjin67/linux_virt_unit"
     "log"
     "time"
     "sync"
@@ -17,29 +16,24 @@ var portMutex sync.Mutex
 
 func InitHttpRequest(WorkQueue *i.ContainerQueue) {
 
-    db.InitMongoDB()
-    defer db.CloseMongoDB() // 프로그램 종료 시 MongoDB 연결 해제
-    WorkQueue = &i.ContainerQueue{
-            Tasks: make(chan lvirt.ContainerInfo, 100),
-    }
-    WorkQueue.Start(5) // 5개의 작업자 시작
-    defer WorkQueue.Stop()
+    incus_unit.WorkQueue.Start(5) // 5개의 작업자 시작
+    defer incus_unit.WorkQueue.Stop()
 
     // 라우터 설정
-    lvirt.Route = mux.NewRouter()
-    lvirt.Route.HandleFunc("/register", i.Register).Methods("POST")
-    lvirt.Route.HandleFunc("/create", i.CreateContainer).Methods("POST")
-    lvirt.Route.HandleFunc("/request", i.GetContainers).Methods("POST")
-    lvirt.Route.HandleFunc("/delete", i.DeleteByTag).Methods("POST")
-    lvirt.Route.HandleFunc("/stop", i.StopByTag).Methods("POST")
-    lvirt.Route.HandleFunc("/start", i.StartByTag).Methods("POST")
-    lvirt.Route.HandleFunc("/pause", i.PauseByTag).Methods("POST")
-    lvirt.Route.HandleFunc("/restart", i.RestartByTag).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter = mux.NewRouter()
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/register", incus_unit.Register).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/create", incus_unit.CreateContainer).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/request", incus_unit.GetContainers).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/delete", incus_unit.DeleteByTag).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/stop", incus_unit.StopByTag).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/start", incus_unit.StartByTag).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/pause", incus_unit.PauseByTag).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/restart", incus_unit.RestartByTag).Methods("POST")
 
 
     // HTTP 서버 설정
     srv := &http.Server{
-        Handler:      lvirt.Route,
+        Handler:      linux_virt_unit.LinuxVirtualizationAPIRouter,
         Addr:         ":32000",
         ReadTimeout:  15 * time.Second,
         WriteTimeout: 15 * time.Second,

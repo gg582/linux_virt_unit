@@ -6,8 +6,9 @@ import (
     client "github.com/lxc/incus/client"
     "github.com/lxc/incus/shared/api"
     "net/http"
-    c "github.com/yoonjin67/lvirt_applicationUnit/crypto"
-    lvirt "github.com/yoonjin67/lvirt_applicationUnit"
+    linux_virt_unit_crypto "github.com/yoonjin67/linux_virt_unit/crypto"
+    linux_virt_unit "github.com/yoonjin67/linux_virt_unit"
+    db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
     "context"
     "bytes"
     "encoding/json"
@@ -183,7 +184,7 @@ func createContainer(info lvirt.ContainerInfo) {
 
     info = GetContainerInfo(tag, info)
 
-    ipRes, insertErr := lvirt.AddrCol.InsertOne(ctx, info)
+    ipRes, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
     if insertErr != nil {
         log.Println("Cannot insert container IP into MongoDB")
     } else {
@@ -296,9 +297,9 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     }
 
     stringForTag := string(forTag)
-    cmdDelete := exec.CommandContext(ctx, "/bin/bash", "delete_container.sh "+stringForTag)
+    cmdDelete := exec.CommandContext(context.Background(), "/bin/bash", "delete_container.sh "+stringForTag)
 
-    cur, err := lvirt.AddrCol.Find(ctx, bson.D{{}})
+    cur, err := db.ContainerInfoCollection.Find(context.Background(), bson.D{{}})
     if err != nil {
         http.Error(wr, err.Error(), http.StatusInternalServerError)
         return
@@ -310,7 +311,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
         if err != nil {
             continue
         }
-        var INFO lvirt.ContainerInfo
+        var INFO linux_virt_unit.ContainerInfo
         if err := json.Unmarshal(resp, &INFO); err != nil {
             continue
         }
@@ -343,10 +344,9 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    INFO.Serverip = SERVER_IP
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-    var in lvirt.UserInfo
+    var in linux_virt_unit.UserInfo
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)

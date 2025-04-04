@@ -27,6 +27,4 @@ type ContainerInfo struct {
 var INFO ContainerInfo
 
 
-var Route *mux.Router
-var Colct *mongo.Collection
-var AddrCol , UserCol *mongo.Collection
+var LinuxVirtualizationAPIRouter *mux.Router
