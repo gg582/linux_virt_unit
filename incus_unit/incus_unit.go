@@ -184,7 +184,11 @@ func createContainer(info lvirt.ContainerInfo) {
 
     info = GetContainerInfo(tag, info)
 
-    ipRes, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
+    if info != nil {
+        ipRes, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
+    } else {
+        log.Println("Info is nil??");
+    }
     if insertErr != nil {
         log.Println("Cannot insert container IP into MongoDB")
     } else {

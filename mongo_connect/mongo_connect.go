@@ -111,13 +111,13 @@ func InitMongoDB() {
     ContainerInfoCollection = MongoClient.Database("MC_IP").Collection("IP Collections")
     UserInfoCollection = MongoClient.Database("MC_USER").Collection("User Collections")
 
-    log.Println("MongoDB 연결 성공")
+    log.Println("MongoDB Connected")
 }
 
 func CloseMongoDB() {
     if MongoClient != nil {
         MongoClient.Disconnect(context.Background())
-        log.Println("MongoDB 연결 종료")
+        log.Println("MongoDB Disconnected")
     }
 }
 
