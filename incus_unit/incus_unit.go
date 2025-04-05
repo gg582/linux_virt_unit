@@ -551,6 +551,27 @@ func PauseByTag(wr http.ResponseWriter, req *http.Request) {
     wr.Write([]byte(fmt.Sprintf("Pause command sent for container '%s'", stringForTag)))
 }
 
+// ResumeByTag handles the HTTP request to resume a container.
+func ResumeByTag(wr http.ResponseWriter, req *http.Request) {
+    forTagBytes, err := ioutil.ReadAll(req.Body)
+    if err != nil {
+        log.Printf("PauseByTag: Failed to read request body: %v", err)
+        http.Error(wr, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    stringForTag := strings.Trim(string(forTagBytes), "\"")
+    log.Printf("PauseByTag: Received request to pause container with tag '%s'.", stringForTag)
+    err = ChangeState(stringForTag, "unfreeze")
+    if err != nil {
+        log.Printf("PauseByTag: ChangeState failed for tag '%s': %v", stringForTag, err)
+        http.Error(wr, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    wr.WriteHeader(http.StatusOK)
+    wr.Write([]byte(fmt.Sprintf("Pause command sent for container '%s'", stringForTag)))
+}
+
 // StartByTag handles the HTTP request to start a container.
 func StartByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := ioutil.ReadAll(req.Body)
@@ -779,6 +800,9 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
     		inst, _, err := IncusCli.GetInstance(info.TAG)
     		if err == nil {
     			info.VMStatus = inst.Status
+                if inst.StatusCode == api.Frozen {
+                    info.VMStatus = "Frozen"
+                }
     		} else {
     			log.Printf("GetContainers: Failed to get Incus instance state for tag '%s': %v", info.TAG, err)
     			info.VMStatus = "unknown" // Or some other appropriate status

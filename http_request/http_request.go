@@ -20,6 +20,7 @@ func InitHttpRequest() {
 	linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/stop", incus_unit.StopByTag).Methods("POST")
 	linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/start", incus_unit.StartByTag).Methods("POST")
 	linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/pause", incus_unit.PauseByTag).Methods("POST")
+	linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/resume", incus_unit.ResumeByTag).Methods("POST")
 	linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/restart", incus_unit.RestartByTag).Methods("POST")
 
 	srv := &http.Server{
