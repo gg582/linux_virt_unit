@@ -8,7 +8,6 @@ type UserInfo struct {
     Username     string `json:"username"`
     UsernameIV   string `json:"username_iv"`
     Password     string `json:"password"`
-    PasswordIV   string `json:"password_iv"`
     Key          string `json:"key"`
 }
 
