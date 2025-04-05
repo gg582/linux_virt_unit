@@ -2,6 +2,7 @@ package incus_unit
 
 import (
     "fmt"
+    "errors"
     "container/heap"
     "strings"
     client "github.com/lxc/incus/client"
@@ -32,13 +33,19 @@ var INFO linux_virt_unit.ContainerInfo
 type IntHeap []int
 
 // Len은 요소 개수를 반환합니다.
-func (h IntHeap) Len() int { return len(h) }
+func (h *IntHeap) Len() int { return len(*h) }
 
 // Less는 작은 값이 먼저 나오도록 정렬합니다.
-func (h IntHeap) Less(i, j int) bool { return h[i] < h[j] }
+func (h *IntHeap) Less(i, j int) bool {
+    var heap_nopointer = *h
+    return heap_nopointer[i] < heap_nopointer[j] 
+}
 
 // Swap은 두 요소를 교환합니다.
-func (h IntHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+func (h *IntHeap) Swap(i, j int) { 
+    var heap_nopointer = *h
+    heap_nopointer[i], heap_nopointer[j] = heap_nopointer[j], heap_nopointer[i] 
+}
 
 // Push는 새로운 요소를 추가합니다.
 func (h *IntHeap) Push(x interface{}) {
@@ -159,11 +166,11 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 
     portMutex.Lock()
     if PortHeap.Len() == 0 {
-        port := strconv.Itoa(portInt + 3)
+        port = strconv.Itoa(portInt + 3)
         log.Println("/container_creation.sh " + tag + " " + port + " " + username +  " " + password)
         portInt += 3
     } else {
-        port := strconv.Itoa(heap.Pop(PortHeap).(int))
+        port = strconv.Itoa(heap.Pop(PortHeap).(int))
         log.Println("/container_creation.sh " + tag + " " + port + " " + username +  " " + password)
     }
     portMutex.Unlock()
@@ -216,6 +223,10 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
 func DeleteContainerByName(tag string) error {
     // local Incus 서버에 연결 (유닉스 소켓)
     // 컨테이너 존재 확인
+    if tag == "" {
+        log.Println("Error: tag is nil")
+        return errors.New("tag is nil")
+    }
     container, _, err := IncusCli.GetInstance(tag)
     if err != nil {
         return fmt.Errorf("failed to get container: %w", err)
@@ -252,7 +263,7 @@ func ChangeState(tag string, state string) {
 
     _, err := IncusCli.UpdateInstanceState(tag, req, "")
     if err != nil {
-        log.Fatalf("Container state change failed: %v", err)
+        log.Printf("Container state change failed: %v\n", err)
     }
 }
 
@@ -313,52 +324,84 @@ func StartByTag(wr http.ResponseWriter, req *http.Request) {
     stringForTag := string(forTag)
     stringForTag = strings.Trim(stringForTag, "\"")
     ChangeState(stringForTag, "start")
-    //stringForStartTask := string(forTag)
-    //cmdStart := exec.CommandContext(ctx, "/bin/bash", "-c", "start.sh "+stringForStartTask)
-    //cmdStart.Run()
 
 }
 
 func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
+    log.Println("DeleteByTag: 시작")
     forTag, err := ioutil.ReadAll(req.Body)
     if err != nil {
+        log.Printf("DeleteByTag: 요청 Body 읽기 실패: %v", err)
         http.Error(wr, err.Error(), http.StatusBadRequest)
         return
     }
-
     stringForTag := string(forTag)
     stringForTag = strings.Trim(stringForTag, "\"")
+    log.Printf("DeleteByTag: 삭제할 태그: %s", stringForTag)
 
     cur, err := db.ContainerInfoCollection.Find(context.Background(), bson.D{{}})
     if err != nil {
+        log.Printf("DeleteByTag: MongoDB 조회 실패: %v", err)
         http.Error(wr, err.Error(), http.StatusInternalServerError)
         return
     }
     defer cur.Close(context.Background())
+    log.Println("DeleteByTag: MongoDB 조회 완료")
+
+    found := false
+    var foundInfo linux_virt_unit.ContainerInfo
 
     for cur.Next(context.Background()) {
-        var INFO linux_virt_unit.ContainerInfo
-        if err := cur.Decode(&INFO); err != nil {
+        var info linux_virt_unit.ContainerInfo
+        if err := cur.Decode(&info); err != nil {
+            log.Printf("DeleteByTag: MongoDB 문서 디코딩 실패: %v", err)
             continue
         }
-    
-        if INFO.TAG == stringForTag {
-            p32, _ := strconv.Atoi(INFO.Serverport)
-            p := int(p32)
-    
-            portMutex.Lock()
-            PORT_LIST = DeleteFromListByValue(PORT_LIST, int64(p))
-            heap.Push(PortHeap, int64(p))
-            portMutex.Unlock()
-    
-            filter := bson.M{"tag": stringForTag}
-            if _, err := db.ContainerInfoCollection.DeleteOne(context.Background(), filter); err != nil {
-                log.Printf("Error deleting container from database: %v", err)
-            }
-    
-            DeleteContainerByName(stringForTag)
+        if info.TAG == stringForTag {
+            found = true
+            foundInfo = info
+            log.Printf("DeleteByTag: 찾은 컨테이너 정보: %+v", foundInfo)
+            break
+        }
+    }
+
+    if found {
+        p32, err := strconv.Atoi(foundInfo.Serverport)
+        if err != nil {
+            log.Printf("DeleteByTag: ServerPort 변환 실패: %v", err)
+            http.Error(wr, "Internal server error", http.StatusInternalServerError)
             return
         }
+        p := int(p32)
+        log.Printf("DeleteByTag: 변환된 포트: %d", p)
+
+        portMutex.Lock()
+        log.Printf("DeleteByTag: PortHeap 상태 (Before Pop): %+v", *PortHeap)
+        PORT_LIST = DeleteFromListByValue(PORT_LIST, int64(p))
+        heap.Push(PortHeap, int64(p))
+        log.Printf("DeleteByTag: PortHeap 상태 (After Pop/Push): %+v", *PortHeap)
+        portMutex.Unlock()
+
+        filter := bson.M{"tag": stringForTag}
+        _, err = db.ContainerInfoCollection.DeleteOne(context.Background(), filter)
+        if err != nil {
+            log.Printf("DeleteByTag: MongoDB 삭제 실패: %v", err)
+        } else {
+            log.Println("DeleteByTag: MongoDB 삭제 성공")
+        }
+
+        log.Println("DeleteByTag: DeleteContainerByName 호출")
+        err = DeleteContainerByName(stringForTag)
+        if err != nil {
+            log.Printf("DeleteByTag: DeleteContainerByName 실패: %v", err)
+        } else {
+            log.Println("DeleteByTag: DeleteContainerByName 성공")
+        }
+        return
+    } else {
+        log.Printf("DeleteByTag: 태그 '%s'에 해당하는 컨테이너 정보 없음", stringForTag)
+        http.Error(wr, fmt.Sprintf("Container with tag '%s' not found", stringForTag), http.StatusNotFound)
+        return
     }
 }
 
