@@ -663,6 +663,35 @@ func DeleteContainerByName(tag string) error {
     return nil
 }
 
+func DeleteNginxConfig(port int) error {
+	nginxConfPath := "/etc/nginx/nginx.conf"
+	portStr := strconv.Itoa(port)
+	portPlusOneStr := strconv.Itoa(port + 1)
+	portPlusTwoStr := strconv.Itoa(port + 2)
+
+	// Construct the sed command to delete the three server blocks related to the port.
+	sedCommand := fmt.Sprintf(`sed -i '/listen 0.0.0.0:%s;/ {
+N; /proxy_pass .*:%s;/ d;
+N; /listen 0.0.0.0:%s;/ {
+N; /proxy_pass .*:%s;/ d;
+N; /listen 0.0.0.0:%s;/ {
+N; /proxy_pass .*:%s;/ d;
+}; }; };' %s`,
+		portStr, "22",
+		portPlusOneStr, "30001",
+		portPlusTwoStr, "30002",
+		nginxConfPath)
+
+	cmd := exec.Command("bash", "-c", sedCommand)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("DeleteNginxConfig: Failed to execute sed command: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to delete nginx config: %v, output: %s", err, string(output))
+	}
+	log.Printf("DeleteNginxConfig: Successfully executed sed command. Output: %s", string(output))
+	return nil
+}
+
 // DeleteByTag handles the HTTP request to delete a container by its tag.
 func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     log.Println("DeleteByTag: Start.")
@@ -711,6 +740,9 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
         p := int(p32)
         log.Printf("DeleteByTag: Port to return: %d", p)
 
+        if DeleteNginxConfig(p) != nil {
+            log.Println("Nginx policy modification failed")
+        }
         portMutex.Lock()
         log.Printf("DeleteByTag: PortHeap state (Before Pop/Push): %+v", *PortHeap)
         PORT_LIST = DeleteFromListByValue(PORT_LIST, int(p))
