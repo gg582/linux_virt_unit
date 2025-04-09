@@ -20,7 +20,9 @@ type ContainerInfo struct {
     TAG      string `json:"tag"`
     Serverip string `json:"serverip"`
     Serverport string `json:"serverport"`
-    VMStatus     string `json:"vmstatus"`
+    VMStatus   string `json:"vmstatus"`
+    Distro     string `json:"distro"`
+    DistroVersion     string `json:"version"`
 }
 
 var INFO ContainerInfo

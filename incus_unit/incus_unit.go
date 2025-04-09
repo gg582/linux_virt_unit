@@ -28,31 +28,52 @@ import (
 
 var INFO linux_virt_unit.ContainerInfo
 
-// IntHeap is a min-heap of ints.
-type IntHeap []int
+/*
+var baseImages = map[string]string{
+        "almalinux-9":       "8c24928fdceb",
+        "archlinux-current": "334438793c27",
+        "centos-9-Stream":   "8492a0ddfebf",
+        "debian-10":         "162b38789406",
+        "debian-11":         "31acfd1829a4",
+        "debian-12":         "d15f94c5ebd9",
+        "devuan-beowulf":    "60d9b884187d",
+        "devuan-chimaera":   "524ba12fa420",
+        "devuan-daedalus":   "1111b83930c4",
+        "opensuse-tumbleweed": "9e7888975b4c",
+        "rockylinux-9":      "76d79e10105b",
+        "slackware-15.0":    "310a91673ab4",
+        "slackware-current": "9cce9f6846e6",
+        "ubuntu-20.04":      "bd1d1f6746fa",
+        "ubuntu-22.04":      "7f02ba5e448b",
+        "ubuntu-24.04":      "37d2616360cb",
+    }
 
-// Len returns the number of elements in the heap.
-func (h *IntHeap) Len() int { return len(*h) }
+    */
+// IntHeap is a min-heap of ints.
+
+type PortHeap []int
+
+func (h *PortHeap) Len() int { return len(*h) }
 
 // Less reports whether the element with index i should sort before the element with index j.
-func (h *IntHeap) Less(i, j int) bool {
+func (h *PortHeap) Less(i, j int) bool {
     var heap_nopointer = *h
-    return heap_nopointer[i] < heap_nopointer[j]
+    return heap_nopointer[i] > heap_nopointer[j]
 }
 
 // Swap swaps the elements with indices i and j.
-func (h *IntHeap) Swap(i, j int) {
+func (h *PortHeap) Swap(i, j int) {
     var heap_nopointer = *h
     heap_nopointer[i], heap_nopointer[j] = heap_nopointer[j], heap_nopointer[i]
 }
 
 // Push adds a new element to the heap.
-func (h *IntHeap) Push(x interface{}) {
+func (h *PortHeap) Push(x interface{}) {
     *h = append(*h, x.(int))
 }
 
 // Pop removes and returns the smallest element from the heap.
-func (h *IntHeap) Pop() interface{} {
+func (h *PortHeap) Pop() interface{} {
     old := *h
     n := len(old)
     x := old[n-1]
@@ -60,7 +81,15 @@ func (h *IntHeap) Pop() interface{} {
     return x
 }
 
-var PortHeap *IntHeap
+func (h *PortHeap) Top() interface {} {
+    n:= len(*h)
+    tmp := *h
+    return tmp[n-1]
+}
+
+
+var AvailablePorts *PortHeap
+var UnavailablePorts *PortHeap
 
 var IncusCli client.InstanceServer
 var mydir string = "/usr/local/bin/linuxVirtualization/"
@@ -74,15 +103,14 @@ var cursor interface{}
 var current []byte
 var current_Config []byte
 var buf bytes.Buffer
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
-var portInt int = 27020
+const INITIAL_PORT = 27020
 var ctx context.Context
 var cancel context.CancelFunc
-var tag string
 var ADDR string = "http://hobbies.yoonjin2.kr"
 
 // Mutex to manage port allocation.
 var portMutex sync.Mutex
+var portDeleteMutex sync.Mutex
 
 // Task pool for container creation.
 type ContainerQueue struct {
@@ -108,22 +136,22 @@ func TouchFile(name string) {
     log.Printf("TouchFile: File '%s' touched.", name)
 }
 
-// get_TAG generates a unique tag for a container.
-func get_TAG(mydir string, user string) string {
+// getTAG generates a unique tag for a container.
+func getTAG(mydir string, tag string) string {
     var err error
     var file *os.File
     filePath := mydir + "/container/latest_access"
     file, err = os.OpenFile(filePath, os.O_RDWR, os.FileMode(0644))
     if err != nil {
-        log.Printf("get_TAG: Error opening latest_access file '%s': %v", filePath, err)
+        log.Printf("getTAG: Error opening latest_access file '%s': %v", filePath, err)
     }
     defer file.Close()
-    tagRet := user + "-" + linux_virt_unit_crypto.RandStringBytes(20)
+    tagRet := tag + "-" + linux_virt_unit_crypto.RandStringBytes(20)
     _, err = file.Write([]byte(tagRet))
     if err != nil {
-        log.Printf("get_TAG: Error writing tag to file '%s': %v", filePath, err)
+        log.Printf("getTAG: Error writing tag to file '%s': %v", filePath, err)
     }
-    log.Printf("get_TAG: Generated tag '%s' for user '%s'.", tagRet, user)
+    log.Printf("getTAG: Generated tag '%s' for user '%s'.", tagRet, tag)
     return tagRet
 }
 
@@ -182,15 +210,29 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
         return
     }
     log.Printf("CreateContainer: Parsed container info: %+v", info)
+    if info.Distro == "" || info.DistroVersion == "" || info.TAG == "" || info.Username == "" || info.Password == "" {
+        http.Error(wr, "Invalid field", http.StatusBadRequest);
+        return
+    }
+    info.Distro = info.Distro + "-" + info.DistroVersion 
+    log.Println("Distro Alias is " + info.Distro)
+    if len(baseImages[info.Distro]) == 0{
+        log.Println("image is not available. check https://images.linuxcontainers.org")
+        log.Println("You requested " + info.Distro)
+        http.Error(wr, "Invalid Distro" , http.StatusBadRequest);
+        return
+    }
 
     select {
     case WorkQueue.Tasks <- info:
         log.Println("CreateContainer: Added container creation task to the work queue.")
         string_Reply, _ := json.Marshal(info)
         wr.Write(string_Reply)
+        return
     default:
         log.Println("CreateContainer: Work queue is full.")
         http.Error(wr, "Server is busy", http.StatusServiceUnavailable)
+        return
     }
 }
 
@@ -406,59 +448,157 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
     log.Printf("createContainer: User '%s' exists.", username)
 
     // Generate a unique tag for the container
-    tag := get_TAG(mydir, username)
+    tag := getTAG(mydir, info.TAG)
     info.TAG = tag
     log.Printf("createContainer: Generated tag '%s' for user '%s'.", tag, username)
 
     // Allocate a port for the container
     portMutex.Lock()
     var allocatedPort int
-    if PortHeap.Len() == 0 {
-        allocatedPort = portInt + 3
-        portInt += 3
+    if AvailablePorts.Len() == 0 {
+        if UnavailablePorts.Len() != 0 {
+            allocatedPort = UnavailablePorts.Top().(int) + 3
+        } else {
+            allocatedPort = INITIAL_PORT
+        }
+        UnavailablePorts.Push(allocatedPort)
         log.Printf("createContainer: Allocated new port '%d' for tag '%s'.", allocatedPort, tag)
     } else {
-        allocatedPort = heap.Pop(PortHeap).(int)
-        log.Printf("createContainer: Reused port '%d' for tag '%s'. PortHeap size: %d", allocatedPort, tag, PortHeap.Len())
+        allocatedPort = heap.Pop(AvailablePorts).(int)
+        log.Printf("createContainer: Reused port '%d' for tag '%s'. AvailablePorts size: %d", allocatedPort, tag, AvailablePorts.Len())
     }
+    portMutex.Unlock()
+
     port = strconv.Itoa(allocatedPort)
     info.Serverport = port
     portprev = port
-    portMutex.Unlock()
 
     log.Printf("createContainer: Attempting to create container with tag '%s', port '%s', user '%s' password '%s'.", tag, port, username, password)
 
     // Set a timeout for container creation
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-    defer cancel()
 
-    // Execute the container creation script
-    scriptPath := mydir + "/container_creation.sh"
-    cmdCreate := exec.CommandContext(ctx, "/bin/bash", scriptPath, tag, port, username, password)
-    cmdCreate.Stdout = os.Stdout
-    cmdCreate.Stderr = os.Stderr
-
-    log.Printf("createContainer: Running command: %s %s %s %s %s %s", "/bin/bash", scriptPath, tag, port, username, password)
-    if err := cmdCreate.Run(); err != nil {
-        log.Printf("createContainer: Error running container creation script for tag '%s': %v", tag, err)
-        // If creation fails, return the port to the heap
-        portIntVal, err := strconv.Atoi(port)
-        if err == nil {
-            portMutex.Lock()
-            heap.Push(PortHeap, portIntVal)
-            portMutex.Unlock()
-            log.Printf("createContainer: Returned port '%s' to the PortHeap due to creation failure.", port)
-        } else {
-            log.Printf("createContainer: Error converting port '%s' to integer: %v", port, err)
-        }
-        return
+    containerConfig := api.InstancesPost {
+        Name: tag,
+        Source: api.InstanceSource {
+            Type: "image",
+            Fingerprint: baseImages[info.Distro],
+        },
     }
-    cmdCreate.Wait()
+    op, err := IncusCli.CreateInstance(containerConfig)
+    // Execute the container creation script
+    if err != nil {
+        log.Printf("Failed to create container. Error: %v\n", err)
+    } else {
+        // If creation fails, return the port to the heap
+        op.Wait()
+    }
+    containerInfo, _, err := IncusCli.GetInstanceState(tag)
+    if err != nil {
+        log.Printf("Container Check failed: %v\n", err)
+    }
     log.Printf("createContainer: Container creation script finished for tag '%s'.", tag)
+    ChangeState(tag, "start")
+
+    var currentContainerIP, currentContainerIPv6 string
+
+    for _, network := range containerInfo.Network {
+
+        if network.Type == "broadcast" {
+            for _, addr := range network.Addresses {
+                if addr.Family == "inet" {
+                    currentContainerIP = addr.Address
+                } else if addr.Family == "inet6" {
+                    currentContainerIPv6 = addr.Address
+                }
+            }
+        }
+    }
+    var file *os.File
+    if currentContainerIP != "" {
+        nginxConfig := fmt.Sprintf(`
+        server {
+            listen 0.0.0.0:%d;
+            proxy_pass %s:22;
+        }
+        server {
+            listen 0.0.0.0:%d;
+            proxy_pass %s:30001;
+        }
+        server {
+            listen 0.0.0.0:%d;
+            proxy_pass %s:30002;
+        }
+        `, allocatedPort, currentContainerIP, allocatedPort+1, currentContainerIP, allocatedPort+2, currentContainerIP)
+    
+        // **append** setting into nginx
+        file, err = os.OpenFile("/etc/nginx/nginx.conf", os.O_APPEND|os.O_WRONLY, 0644)
+        if err != nil {
+            log.Fatal("Error opening nginx.conf file: ", err)
+        }
+        defer file.Close()
+    
+        //so this should act as "append" mode
+        _, err = file.WriteString(nginxConfig)
+        if err != nil {
+            log.Fatal("Error writing to nginx.conf: ", err)
+        }
+    }
+    if currentContainerIPv6 != "" {
+        nginxConfig := fmt.Sprintf(`
+    server {
+        listen [::]:%d;
+        proxy_pass [%s]:22;
+    }
+    server {
+        listen [::]:%d;
+        proxy_pass [%s]:30001;
+    }
+    server {
+        listen [::]:%d;
+        proxy_pass [%s]:30002;
+    }
+    `, allocatedPort, currentContainerIPv6, allocatedPort+1, currentContainerIPv6, allocatedPort+2, currentContainerIPv6)
+    
+        // /etc/nginx/nginx.conf에 설정 덧붙이기
+        // nginx 설정을 파일에 덧붙이기
+        _, err = file.WriteString(nginxConfig)
+        if err != nil {
+            log.Fatal("Error writing to nginx.conf: ", err)
+        }
+}
+    exec.Command("/usr/sbin/nginx", "-s", "reload")
+    command := []string{"/bin/bash", "/conSSH.sh", username, password, tag}
+    execArgs := api.InstanceExecPost{
+            Command: command,
+            Environment: map[string]string{
+            }, 
+             User: 0, // root user
+             Group: 0, 
+    }
+
+    ioDescriptor := client.InstanceExecArgs{
+      Stdin: os.Stdin,
+      Stdout: os.Stdout,
+      Stderr: os.Stderr,
+    }
+    // 명령 실행
+    op, err = IncusCli.ExecInstance(tag, execArgs, &ioDescriptor)
+    if err != nil {
+            fmt.Fprintf(os.Stderr, "Failed to setup SSH: %v\n", err)
+            os.Exit(1)
+    }
+
+    // 작업 완료 대기 및 결과 가져오기
+    err = op.Wait()
+    if err != nil {
+            log.Printf("Failed to get SSH setup result: %v\n", err)
+            os.Exit(1)
+    }
+    fmt.Println("Nginx configuration has been successfully updated.")
 
     // Set the initial VMStatus to "running" after successful creation
-    info.VMStatus = "running"
-    log.Printf("createContainer: Setting initial status to 'running' for tag '%s'.", tag)
+
+
 
     // Insert container information into MongoDB
     _, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
@@ -664,32 +804,32 @@ func DeleteContainerByName(tag string) error {
 }
 
 func DeleteNginxConfig(port int) error {
-	nginxConfPath := "/etc/nginx/nginx.conf"
-	portStr := strconv.Itoa(port)
-	portPlusOneStr := strconv.Itoa(port + 1)
-	portPlusTwoStr := strconv.Itoa(port + 2)
+    nginxConfPath := "/etc/nginx/nginx.conf"
+    portStr := strconv.Itoa(port)
+    portPlusOneStr := strconv.Itoa(port + 1)
+    portPlusTwoStr := strconv.Itoa(port + 2)
 
-	// Construct the sed command to delete the three server blocks related to the port.
-	sedCommand := fmt.Sprintf(`sed -i '/listen 0.0.0.0:%s;/ {
+    // Construct the sed command to delete the three server blocks related to the port.
+    sedCommand := fmt.Sprintf(`sed -i '/listen 0.0.0.0:%s;/ {
 N; /proxy_pass .*:%s;/ d;
 N; /listen 0.0.0.0:%s;/ {
 N; /proxy_pass .*:%s;/ d;
 N; /listen 0.0.0.0:%s;/ {
 N; /proxy_pass .*:%s;/ d;
 }; }; };' %s`,
-		portStr, "22",
-		portPlusOneStr, "30001",
-		portPlusTwoStr, "30002",
-		nginxConfPath)
+        portStr, "22",
+        portPlusOneStr, "30001",
+        portPlusTwoStr, "30002",
+        nginxConfPath)
 
-	cmd := exec.Command("bash", "-c", sedCommand)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("DeleteNginxConfig: Failed to execute sed command: %v, output: %s", err, string(output))
-		return fmt.Errorf("failed to delete nginx config: %v, output: %s", err, string(output))
-	}
-	log.Printf("DeleteNginxConfig: Successfully executed sed command. Output: %s", string(output))
-	return nil
+    cmd := exec.Command("bash", "-c", sedCommand)
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        log.Printf("DeleteNginxConfig: Failed to execute sed command: %v, output: %s", err, string(output))
+        return fmt.Errorf("failed to delete nginx config: %v, output: %s", err, string(output))
+    }
+    log.Printf("DeleteNginxConfig: Successfully executed sed command. Output: %s", string(output))
+    return nil
 }
 
 // DeleteByTag handles the HTTP request to delete a container by its tag.
@@ -743,12 +883,12 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
         if DeleteNginxConfig(p) != nil {
             log.Println("Nginx policy modification failed")
         }
-        portMutex.Lock()
-        log.Printf("DeleteByTag: PortHeap state (Before Pop/Push): %+v", *PortHeap)
+        portDeleteMutex.Lock()
+        log.Printf("DeleteByTag: AvailablePorts state (Before Pop/Push): %+v", *AvailablePorts)
         PORT_LIST = DeleteFromListByValue(PORT_LIST, int(p))
-        heap.Push(PortHeap, int(p))
-        log.Printf("DeleteByTag: PortHeap state (After Pop/Push): %+v", *PortHeap)
-        portMutex.Unlock()
+        heap.Push(AvailablePorts, int(p))
+        log.Printf("DeleteByTag: AvailablePorts state (After Pop/Push): %+v", *AvailablePorts)
+        portDeleteMutex.Unlock()
 
         filter := bson.M{"tag": stringForTag}
         _, err = db.ContainerInfoCollection.DeleteOne(context.Background(), filter)
@@ -790,64 +930,64 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
         return
     }
     if err := json.Unmarshal(body, &in); err != nil {
-	log.Printf("GetContainers: Failed to parse JSON request body: %v", err)
-	http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
-	return
+    log.Printf("GetContainers: Failed to parse JSON request body: %v", err)
+    http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
+    return
     }
 
     log.Printf("GetContainers: Received request for containers of user '%s' (encrypted).", in.Username)
     
     decodedUsername, err := linux_virt_unit_crypto.DecryptString(in.Username, in.Key, in.UsernameIV)
     if err != nil {
-    	log.Printf("GetContainers: Failed to decrypt username: %v", err)
-    	http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
-    	return
+        log.Printf("GetContainers: Failed to decrypt username: %v", err)
+        http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
+        return
     }
     log.Printf("GetContainers: Decrypted username: '%s'.", decodedUsername)
     
     cur, err := db.ContainerInfoCollection.Find(ctx, bson.D{{}})
     if err != nil {
-    	log.Printf("GetContainers: Error finding container information in MongoDB: %v", err)
-    	http.Error(wr, "Database error: "+err.Error(), http.StatusInternalServerError)
-    	return
+        log.Printf("GetContainers: Error finding container information in MongoDB: %v", err)
+        http.Error(wr, "Database error: "+err.Error(), http.StatusInternalServerError)
+        return
     }
     defer cur.Close(ctx)
     
     jsonList := make([]interface{}, 0, 100000)
     for cur.Next(ctx) {
-    	var info linux_virt_unit.ContainerInfo
-    	if err := cur.Decode(&info); err != nil {
-    		log.Printf("GetContainers: Error decoding container document from MongoDB: %v", err)
-    		continue
-    	}
-    	usernameFromDB, err := linux_virt_unit_crypto.DecryptString(info.Username, info.Key, info.UsernameIV)
-    	if err != nil {
-    		log.Printf("GetContainers: Error decrypting username from DB for tag '%s': %v", info.TAG, err)
-    		continue
-    	}
-    	// In GetContainers, we should compare the decrypted username with the requested username.
-    	// We are not verifying the password here, as this endpoint is for listing containers
-    	// of an already authenticated user (authentication should happen elsewhere).
-    	if usernameFromDB == decodedUsername {
-    		inst, _, err := IncusCli.GetInstance(info.TAG)
-    		if err == nil {
-    			info.VMStatus = inst.Status
+        var info linux_virt_unit.ContainerInfo
+        if err := cur.Decode(&info); err != nil {
+            log.Printf("GetContainers: Error decoding container document from MongoDB: %v", err)
+            continue
+        }
+        usernameFromDB, err := linux_virt_unit_crypto.DecryptString(info.Username, info.Key, info.UsernameIV)
+        if err != nil {
+            log.Printf("GetContainers: Error decrypting username from DB for tag '%s': %v", info.TAG, err)
+            continue
+        }
+        // In GetContainers, we should compare the decrypted username with the requested username.
+        // We are not verifying the password here, as this endpoint is for listing containers
+        // of an already authenticated user (authentication should happen elsewhere).
+        if usernameFromDB == decodedUsername {
+            inst, _, err := IncusCli.GetInstance(info.TAG)
+            if err == nil {
+                info.VMStatus = inst.Status
                 if inst.StatusCode == api.Frozen {
                     info.VMStatus = "Frozen"
                 }
-    		} else {
-    			log.Printf("GetContainers: Failed to get Incus instance state for tag '%s': %v", info.TAG, err)
-    			info.VMStatus = "unknown" // Or some other appropriate status
-    		}
-    		jsonList = append(jsonList, info)
-    	}
+            } else {
+                log.Printf("GetContainers: Failed to get Incus instance state for tag '%s': %v", info.TAG, err)
+                info.VMStatus = "unknown" // Or some other appropriate status
+            }
+            jsonList = append(jsonList, info)
+        }
     }
     
     resp, err := json.Marshal(jsonList)
     if err != nil {
-    	log.Printf("GetContainers: Failed to marshal container list to JSON: %v", err)
-    	http.Error(wr, "Failed to marshal response: "+err.Error(), http.StatusInternalServerError)
-    	return
+        log.Printf("GetContainers: Failed to marshal container list to JSON: %v", err)
+        http.Error(wr, "Failed to marshal response: "+err.Error(), http.StatusInternalServerError)
+        return
     }
     
     wr.WriteHeader(http.StatusOK)
@@ -860,8 +1000,8 @@ func CheckUserExists(username string) bool {
     defer cancel()
     count, err := db.UserInfoCollection.CountDocuments(ctx, bson.M{"username": username})
     if err != nil {
-    	log.Printf("CheckUserExists: Failed to count documents for username '%s': %v", username, err)
-    	return false
+        log.Printf("CheckUserExists: Failed to count documents for username '%s': %v", username, err)
+        return false
     }
     log.Printf("CheckUserExists: Found %d users with username '%s'.", count, username)
     return count > 0
@@ -873,46 +1013,46 @@ func Register(wr http.ResponseWriter, req *http.Request) {
     var u linux_virt_unit.UserInfo
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
-    	log.Printf("Register: Failed to read request body: %v", err)
-    	http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
-    	return
+        log.Printf("Register: Failed to read request body: %v", err)
+        http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
+        return
     }
     
     if err := json.Unmarshal(body, &u); err != nil {
-    	log.Printf("Register: Failed to parse JSON request body: %v", err)
-    	http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
-    	return
+        log.Printf("Register: Failed to parse JSON request body: %v", err)
+        http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
+        return
     }
     log.Printf("Register: Received registration request for user '%s' (encrypted).", u.Username)
     
     u.Username, err = linux_virt_unit_crypto.DecryptString(u.Username, u.Key, u.UsernameIV)
     if err != nil {
-    	log.Printf("Register: Failed to decrypt username: %v", err)
-    	http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
-    	return
+        log.Printf("Register: Failed to decrypt username: %v", err)
+        http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
+        return
     }
     log.Printf("Register: Decrypted username: '%s'.", u.Username)
     
     if CheckUserExists(u.Username) {
-    	log.Printf("Register: User '%s' already registered.", u.Username)
-    	http.Error(wr, "User already registered", http.StatusConflict)
-    	return
+        log.Printf("Register: User '%s' already registered.", u.Username)
+        http.Error(wr, "User already registered", http.StatusConflict)
+        return
     }
     
     // Hash the password
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
     if err != nil {
-    	log.Printf("Register: Failed to hash password for user '%s': %v", u.Username, err)
-    	http.Error(wr, "Failed to hash password: "+err.Error(), http.StatusInternalServerError)
-    	return
+        log.Printf("Register: Failed to hash password for user '%s': %v", u.Username, err)
+        http.Error(wr, "Failed to hash password: "+err.Error(), http.StatusInternalServerError)
+        return
     }
     u.Password = string(hashedPassword)
     log.Printf("Register: Password hashed for user '%s'.", u.Username)
     
     if _, err := db.UserInfoCollection.InsertOne(ctx, u); err != nil {
-    	log.Printf("Register: Failed to register user '%s' in MongoDB: %v", u.Username, err)
-    	http.Error(wr, "Failed to register user: "+err.Error(), http.StatusInternalServerError)
-    	return
+        log.Printf("Register: Failed to register user '%s' in MongoDB: %v", u.Username, err)
+        http.Error(wr, "Failed to register user: "+err.Error(), http.StatusInternalServerError)
+        return
     }
     
     wr.Write([]byte("User Registration Done"))
