@@ -10,6 +10,8 @@ import (
 	"github.com/yoonjin67/linux_virt_unit/incus_unit"
 )
 
+const certfile = "/usr/local/bin/linuxVirtualization/certs/server.crt"
+const keyfile  = "/usr/local/bin/linuxVirtualization/certs/server.key"
 
 func InitHttpRequest() {
 	linux_virt_unit.LinuxVirtualizationAPIRouter = mux.NewRouter()
@@ -32,7 +34,7 @@ func InitHttpRequest() {
 	}
 
 	log.Printf("Starting server on port 32000")
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := srv.ListenAndServeTLS(certfile, keyfile); err != nil && err != http.ErrServerClosed {
 		log.Printf("HTTP server ListenAndServe error: %v", err)
 	} else {
 		log.Println("HTTP server stopped gracefully.")

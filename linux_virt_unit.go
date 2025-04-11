@@ -4,6 +4,8 @@ import (
     "github.com/gorilla/mux"
 )
 
+
+
 type UserInfo struct {
     Username     string `json:"username"`
     UsernameIV   string `json:"username_iv"`
@@ -12,20 +14,18 @@ type UserInfo struct {
 }
 
 type ContainerInfo struct {
-    Username string `json:"username"`
-    UsernameIV string `json:"username_iv"`
-    Password string `json:"password"`
-    PasswordIV       string `json:"password_iv"`
-    Key      string `json:"key"`
-    TAG      string `json:"tag"`
-    Serverip string `json:"serverip"`
-    Serverport string `json:"serverport"`
-    VMStatus   string `json:"vmstatus"`
-    Distro     string `json:"distro"`
-    DistroVersion     string `json:"version"`
+    Username      string `json:"username"`
+    UsernameIV    string `json:"username_iv"`
+    Password      string `json:"password"`
+    PasswordIV    string `json:"password_iv"`
+    Key           string `json:"key"`
+    TAG           string `json:"tag"`
+    Serverip      string `json:"serverip"`
+    Serverport    string `json:"serverport"`
+    VMStatus      string `json:"vmstatus"`
+    Distro        string `json:"distro"`
+    DistroVersion string `json:"version"`
 }
-
-var INFO ContainerInfo
 
 
 var LinuxVirtualizationAPIRouter *mux.Router

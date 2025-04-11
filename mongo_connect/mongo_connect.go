@@ -2,90 +2,167 @@ package mongo_connect
 
 import (
     "net/http"
+    "strconv"
     "context"
     "encoding/json"
-    "io/ioutil"
     "log"
     "time"
+    "io"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
+
     linux_virt_unit "github.com/yoonjin67/linux_virt_unit"
 )
 
+const MAX_PORT = 65535
 var ContainerInfoCollection, UserInfoCollection *mongo.Collection
-var MongoClient *mongo.Client // 전역 변수로 선언
-var INFO linux_virt_unit.ContainerInfo
 
+var MongoClient *mongo.Client // Declared globally for MongoDB operations
 
-func botCheck(u string, pw string) bool {
-    cur, err := UserInfoCollection.Find(context.Background(), bson.D{{}})
-    if err != nil {
-        log.Printf("Database query error: %v", err)
-        return true
-    }
-    defer cur.Close(context.Background())
+// GetTopPort manually scans the collection to find the highest Serverport value
+func GetTopPort() (int, error) {
+	ctx := context.Background()
+	cur, err := ContainerInfoCollection.Find(ctx, bson.M{})
+	if err != nil {
+		log.Println("GetTopPort: Failed to fetch container list:", err)
+		return -1, err
+	}
+	defer cur.Close(ctx)
 
-    for cur.Next(context.TODO()) {
-        current, err := bson.MarshalExtJSON(cur.Current, false, false)
-        if err != nil {
-            continue
-        }
-        var i linux_virt_unit.UserInfo
-        if err := json.Unmarshal(current, &i); err != nil {
-            continue
-        }
-        if i.Password == pw && i.Username == u {
-            return false
-        }
-    }
-    return true
+	topPort := -1
+	for cur.Next(ctx) {
+		var info linux_virt_unit.ContainerInfo
+		if err := cur.Decode(&info); err != nil {
+			continue
+		}
+		port, err := strconv.Atoi(info.Serverport)
+		if err != nil {
+			continue
+		}
+		if port > topPort {
+			topPort = port
+		}
+	}
+
+	if topPort == -1 {
+		log.Println("GetTopPort: Port list is empty")
+	}
+	return topPort, nil
 }
 
+// FindTag manually scans the collection to find if a tag exists
+func FindTag(tag string) (bool, string) {
+	ctx := context.Background()
+	cur, err := ContainerInfoCollection.Find(ctx, bson.M{})
+	if err != nil {
+		log.Println("FindTag: Failed to fetch container list:", err)
+		return false, ""
+	}
+	defer cur.Close(ctx)
 
+	for cur.Next(ctx) {
+		var info linux_virt_unit.ContainerInfo
+		if err := cur.Decode(&info); err != nil {
+			continue
+		}
+		if info.TAG == tag {
+			return true, info.TAG
+		}
+	}
+	return false, ""
+}
 
+// FindPort manually scans the collection to find if a port exists
+func FindPort(port int) (bool, int) {
+	ctx := context.Background()
+	cur, err := ContainerInfoCollection.Find(ctx, bson.M{})
+	if err != nil {
+		log.Println("FindPort: Failed to fetch container list:", err)
+		return false, -1
+	}
+	defer cur.Close(ctx)
+
+	for cur.Next(ctx) {
+		var info linux_virt_unit.ContainerInfo
+		if err := cur.Decode(&info); err != nil {
+			continue
+		}
+		p, err := strconv.Atoi(info.Serverport)
+		if err != nil {
+			continue
+		}
+		if p == port {
+			return true, p
+		}
+	}
+	log.Println("FindPort: Port not found in collection")
+	return false, -1
+}
+
+// SetupSort creates a descending index on the Serverport field
+func SetupSort(c *mongo.Collection) bool {
+	ctx := context.Background()
+	indexModel := mongo.IndexModel{
+		Keys: bson.D{{Key: "Serverport", Value: -1}},
+		Options: &options.IndexOptions{
+			Unique: new(bool), // not strictly unique but required by driver
+		},
+	}
+	_, err := c.Indexes().CreateOne(ctx, indexModel)
+	if err != nil {
+		log.Println("SetupSort: Failed to create Serverport index:", err)
+		return false
+	}
+	return true
+}
+
+// UseContainer returns all containers matching a manually matched username and password
 func UseContainer(wr http.ResponseWriter, req *http.Request) {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    wr.Header().Set("Content-Type", "application/json; charset=utf-8")
-    
-    var in linux_virt_unit.UserInfo
-    body, err := ioutil.ReadAll(req.Body)
-    if err != nil {
-        http.Error(wr, err.Error(), http.StatusBadRequest)
-        return
-    }
-    
-    if err := json.Unmarshal(body, &in); err != nil {
-        http.Error(wr, err.Error(), http.StatusBadRequest)
-        return
-    }
+	wr.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-    filter := bson.M{"username": in.Username, "password": in.Password}
-    cur, err := ContainerInfoCollection.Find(ctx, filter)
-    if err != nil {
-        http.Error(wr, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    defer cur.Close(ctx)
+	var in linux_virt_unit.UserInfo
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
 
-    var results []linux_virt_unit.ContainerInfo
-    for cur.Next(ctx) {
-        var info linux_virt_unit.ContainerInfo
-        if err := cur.Decode(&info); err != nil {
-            continue
-        }
-        results = append(results, info)
-    }
+	if err := json.Unmarshal(body, &in); err != nil {
+		http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
 
-    resp, err := json.Marshal(results)
-    if err != nil {
-        http.Error(wr, err.Error(), http.StatusInternalServerError)
-        return
-    }
+	// Manually scan the collection and compare credentials
+	cur, err := ContainerInfoCollection.Find(ctx, bson.M{})
+	if err != nil {
+		http.Error(wr, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cur.Close(ctx)
 
-    wr.Write(resp)
+	var results []linux_virt_unit.ContainerInfo
+	for cur.Next(ctx) {
+		var info linux_virt_unit.ContainerInfo
+		if err := cur.Decode(&info); err != nil {
+			continue
+		}
+		if info.Username == in.Username && info.Password == in.Password {
+			results = append(results, info)
+		}
+	}
+
+	resp, err := json.Marshal(results)
+	if err != nil {
+		http.Error(wr, "Failed to encode response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	wr.WriteHeader(http.StatusOK)
+	wr.Write(resp)
 }
 
 
@@ -100,15 +177,19 @@ func InitMongoDB() {
         log.Fatal(err)
     }
 
-    // 연결 테스트
+    //Ping Test
     err = MongoClient.Ping(context.Background(), nil)
     if err != nil {
         log.Fatal(err)
     }
 
-    // 컬렉션 초기화
-    ContainerInfoCollection = MongoClient.Database("MC_IP").Collection("Container Info Collections")
-    UserInfoCollection = MongoClient.Database("MC_USER").Collection("User Collections")
+    //obtain collections
+
+    ContainerInfoCollection = MongoClient.Database("LVIRT_CONTAINER").Collection("Container Info Collections")
+    if SetupSort(ContainerInfoCollection) == false {
+        log.Println("Error setting up sort")
+    }
+    UserInfoCollection = MongoClient.Database("LVIRT_USER").Collection("User Collections")
 
     log.Println("MongoDB Connected")
 }
