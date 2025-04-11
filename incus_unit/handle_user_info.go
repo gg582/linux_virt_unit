@@ -58,6 +58,15 @@ func CheckUserExists(username string, password string) bool {
 	return false
 }
 
+// Register godoc
+// @Summary Register a new user 
+// @Description Registers a new user 
+// @Accept json
+// @Produce json
+// @Param request body linux_virt_unit.UserInfo true "User registration request"
+// @Success 200 "User Registration Done."
+// @Failure 400 "Error Descriptions"
+// @Router /register [post]
 func Register(wr http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

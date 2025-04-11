@@ -52,8 +52,25 @@ func TouchFile(name string) {
     log.Printf("TouchFile: File '%s' touched.", name)
 }
 
-
-// CreateContainer handles the HTTP request to create a container.
+// @Summary Create a new container
+// @Description Creates a new container with the provided information.
+// @Accept json
+// @Produce json
+// @Param request body linux_virt_unit.ContainerInfo true "Container creation request" example(application/json)={ \
+//    "username": "user123", \
+//    "username_iv": "someIV1", \
+//    "password": "encryptedPassword", \
+//    "password_iv": "someIV2", \
+//    "key": "encryptionKey", \
+//    "tag": "v1.0", \
+//    "serverip": "10.72.1.100", \
+//    "serverport": "8080", \
+//    "vmstatus": "running", \
+//    "distro": "ubuntu", \
+//    "version": "20.04" \
+// }
+// @Success 200 {string} string "Container Information"
+// @Router /containers [post]
 func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
     log.Println("CreateContainer: Received request to create a container.")

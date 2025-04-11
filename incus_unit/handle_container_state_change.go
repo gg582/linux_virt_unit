@@ -15,7 +15,15 @@ import (
     db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
     "go.mongodb.org/mongo-driver/bson"
 )
-// StopByTag handles the HTTP request to stop a container.
+// StopByTag godoc
+// @Summary Stop container by tag
+// @Description Stops a container with the specified tag.
+// @Accept json
+// @Produce json
+// @Param request body string true "Tag to stop"
+// @Status 200 "Empty String"OK 
+// @Failure 400 "Empty String"BadRequest
+// @Router /stop [post]
 func StopByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
     if err != nil {
@@ -36,7 +44,15 @@ func StopByTag(wr http.ResponseWriter, req *http.Request) {
     wr.Write([]byte(fmt.Sprintf("Stop command sent for container '%s'", stringForTag)))
 }
 
-// RestartByTag handles the HTTP request to restart a container.
+// RestartByTag godoc
+// @Summary Restart container by tag
+// @Description Restarts a container with the specified tag.
+// @Accept json
+// @Produce json
+// @Param request body string true "Tag to restart"
+// @Status 200 "Empty String"OK
+// @Failure 400 "Empty String"BadRequests
+// @Router /restart [post]
 func RestartByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
     if err != nil {
@@ -57,7 +73,15 @@ func RestartByTag(wr http.ResponseWriter, req *http.Request) {
     wr.Write([]byte(fmt.Sprintf("Restart command sent for container '%s'", stringForTag)))
 }
 
-// PauseByTag handles the HTTP request to pause a container.
+// PauseByTag godoc
+// @Summary Pause container by tag
+// @Description Pauses a container with the specified tag.
+// @Accept json
+// @Produce json
+// @Param request body string true "Tag to pause"
+// @Status 200 "Empty String"OK 
+// @Failure 400 "Empty String"BadRequest
+// @Router /pause [post]
 func PauseByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
     if err != nil {
@@ -78,7 +102,15 @@ func PauseByTag(wr http.ResponseWriter, req *http.Request) {
     wr.Write([]byte(fmt.Sprintf("Pause command sent for container '%s'", stringForTag)))
 }
 
-// ResumeByTag handles the HTTP request to resume a container.
+// ResumeByTag godoc
+// @Summary Resume container by tag
+// @Description Resumes a container with the specified tag.
+// @Accept json
+// @Produce json
+// @Param request body string true "Tag to resume"
+// @Status 200 "Empty String"OK
+// @Failure 400 "Empty String"BadRequest
+// @Router /resume [post]
 func ResumeByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
     if err != nil {
@@ -99,7 +131,15 @@ func ResumeByTag(wr http.ResponseWriter, req *http.Request) {
     wr.Write([]byte(fmt.Sprintf("Pause command sent for container '%s'", stringForTag)))
 }
 
-// StartByTag handles the HTTP request to start a container.
+// StartByTag godoc
+// @Summary Start container by tag
+// @Description Starts a container with the specified tag.
+// @Accept json
+// @Produce json
+// @Param request body string true "Tag to start"
+// @Status 200 "Empty String"OK
+// @Failure 400 "Empty String"BadRequest
+// @Router /start [post]
 func StartByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
     if err != nil {
@@ -219,7 +259,15 @@ N; /proxy_pass .*:%s;/ d;
     return nil
 }
 
-// DeleteByTag handles the HTTP request to delete a container by its tag.
+// DeleteByTag godoc
+// @Summary Delete container by tag
+// @Description Deletes a container with the specified tag.
+// @Accept json
+// @Produce json
+// @Param request body string true "Tag to delete"
+// @Status 200 "Empty String"OK
+// @Failure 400 "Empty String"BadRequest 
+// @Router /delete [post]
 func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     portDeleteMutex.Lock()
     defer portDeleteMutex.Unlock()
