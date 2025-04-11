@@ -74,33 +74,7 @@ func (q *ContainerQueue) Start(numWorkers int) {
 // @Accept json
 // @Produce json
 // @Param request body string true "Container retrieval request"
-// @Success 200  
-// [
-//    "username": "user123", \
-//    "username_iv": "someIV1", \
-//    "password": "encryptedPassword", \
-//    "password_iv": "someIV2", \
-//    "key": "encryptionKey", \
-//    "tag": "ubuntu20", \
-//    "serverip": "10.72.1.100", \
-//    "serverport": "8080", \
-//    "vmstatus": "running", \
-//    "distro": "ubuntu", \
-//    "version": "20.04" \
-// },
-//    "username": "user122", \
-//    "username_iv": "someIV1", \
-//    "password": "encryptedPassword", \
-//    "password_iv": "someIV2", \
-//    "key": "encryptionKey", \
-//    "tag": "ubuntu24", \
-//    "serverip": "10.72.1.101", \
-//    "serverport": "8080", \
-//    "vmstatus": "running", \
-//    "distro": "ubuntu", \
-//    "version": "24.04" \
-// }
-// ]
+// @Success 200 "Container Information Json"
 // @Failure 400 "Error Description"
 // @Router /request [post]
 func GetContainers(wr http.ResponseWriter, req *http.Request) {

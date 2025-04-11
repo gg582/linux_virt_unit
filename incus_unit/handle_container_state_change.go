@@ -21,8 +21,8 @@ import (
 // @Accept json
 // @Produce json
 // @Param request body string true "Tag to stop"
-// @Status 200 "Empty String"OK 
-// @Failure 400 "Empty String"BadRequest
+// @Status 200 "Empty String"
+// @Failure 400 "Empty String"
 // @Router /stop [post]
 func StopByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)

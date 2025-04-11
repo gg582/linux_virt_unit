@@ -69,7 +69,7 @@ func TouchFile(name string) {
 //    "distro": "ubuntu", \
 //    "version": "20.04" \
 // }
-// @Success 200 {string} string "Container Information"
+// @Success 200 "Container Information json"
 // @Router /containers [post]
 func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
