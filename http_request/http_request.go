@@ -5,6 +5,7 @@ import (
     "net/http"
     "time"
 
+    "path/filepath"
     "github.com/gorilla/mux"
     "github.com/yoonjin67/linux_virt_unit"
     "github.com/yoonjin67/linux_virt_unit/incus_unit"
@@ -13,6 +14,7 @@ import (
 
 const certfile = "/usr/local/bin/linuxVirtualization/certs/server.crt"
 const keyfile  = "/usr/local/bin/linuxVirtualization/certs/server.key"
+const LVIRT_INSTALL_DIR = "/usr/local/bin/linuxVirtualization"
 
 // InitHttpRequest initializes the HTTP request handler.
 func InitHttpRequest() {
@@ -34,8 +36,10 @@ func InitHttpRequest() {
     linux_virt_unit.LinuxVirtualizationAPIRouter.PathPrefix("/swagger/").Handler(httpSwagger.Handler(httpSwagger.URL(swaggerURL)))
 
     // Redirect root to Swagger UI.
-    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        http.Redirect(w, r, "/swagger/index.html", http.StatusFound)
+
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/docs/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+        filePath := filepath.Join(LVIRT_INSTALL_DIR, "docs", "swagger.json")
+        http.ServeFile(w, r, filePath)
     })
 
     // Server configuration.
