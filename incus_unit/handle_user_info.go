@@ -64,8 +64,8 @@ func CheckUserExists(username string, password string) bool {
 // @Accept json
 // @Produce json
 // @Param request body linux_virt_unit.UserInfo true "User registration request"
-// @Success 200 "User Registration Done."
-// @Failure 400 "Error Descriptions"
+// @Success 200 body string true "User Registration Done."
+// @Failure 400 
 // @Router /register [post]
 func Register(wr http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

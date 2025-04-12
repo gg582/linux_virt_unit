@@ -62,15 +62,28 @@ func TouchFile(name string) {
 //    "password": "encryptedPassword", \
 //    "password_iv": "someIV2", \
 //    "key": "encryptionKey", \
-//    "tag": "v1.0", \
+//    "tag": "uvuntu", \
 //    "serverip": "10.72.1.100", \
-//    "serverport": "8080", \
+//    "serverport": "27020", \
 //    "vmstatus": "running", \
 //    "distro": "ubuntu", \
 //    "version": "20.04" \
 // }
-// @Success 200 "Container Information json"
-// @Router /containers [post]
+// @Success 200 {object} linux_virt_unit.ContainerInfo "Container Info"
+// {
+//    "username": "user123", 
+//    "username_iv": "someIV1", 
+//    "password": "encryptedPassword", 
+//    "password_iv": "someIV2", 
+//    "key": "encryptionKey", 
+//    "tag": "ubuntu-randtag", 
+//    "serverip": "10.72.1.100", 
+//    "serverport": "27023", 
+//    "vmstatus": "running", 
+//    "distro": "ubuntu", 
+//    "version": "20.04" 
+// }
+// @Router /create [post]
 func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
     log.Println("CreateContainer: Received request to create a container.")
@@ -303,7 +316,6 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
     nginxRestart := exec.Command("nginx", "-s", "reload")
     nginxRestart.Run()
     fmt.Println("Nginx configuration has been successfully updated.")
-
 
 }
 

@@ -73,9 +73,43 @@ func (q *ContainerQueue) Start(numWorkers int) {
 // @Description GetContainers retrieves a list of containers for a specific user by manually scanning the collection.
 // @Accept json
 // @Produce json
-// @Param request body string true "Container retrieval request"
-// @Success 200 "Container Information Json"
-// @Failure 400 "Error Description"
+// @Param request body linux_virt_unit.UserInfo true "User information"
+//{
+//    "username": "user123", 
+//    "username_iv": "someIV1", 
+//    "password": "passwordHash", 
+//    "key": "encryptionKey", 
+//}
+// @Success 200 {array} linux_virt_unit.ContainerInfo "Created containers list"
+//[
+//{ 
+//    "username": "user123", 
+//    "username_iv": "someIV1", 
+//    "password": "encryptedPassword", 
+//    "password_iv": "someIV2", 
+//    "key": "encryptionKey", 
+//    "tag": "ubuntu20", 
+//    "serverip": "10.72.1.100", 
+//    "serverport": "27020", 
+//    "vmstatus": "running", 
+//    "distro": "ubuntu", 
+//    "version": "20.04" 
+//}, 
+//{
+//    "username": "user122", 
+//    "username_iv": "someIV1", 
+//    "password": "encryptedPassword", 
+//    "password_iv": "someIV2", 
+//    "key": "encryptionKey",
+//    "tag": "ubuntu24", 
+//    "serverip": "10.72.1.101", 
+//    "serverport": "27023", 
+//    "vmstatus": "running", 
+//    "distro": "ubuntu", 
+//    "virtual": "24.04", 
+//},
+//]
+// @Failure 400
 // @Router /request [post]
 func GetContainers(wr http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

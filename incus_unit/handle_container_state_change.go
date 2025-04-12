@@ -21,8 +21,8 @@ import (
 // @Accept json
 // @Produce json
 // @Param request body string true "Tag to stop"
-// @Status 200 "Empty String"
-// @Failure 400 "Empty String"
+// @Status 200 
+// @Failure 400
 // @Router /stop [post]
 func StopByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
@@ -50,8 +50,8 @@ func StopByTag(wr http.ResponseWriter, req *http.Request) {
 // @Accept json
 // @Produce json
 // @Param request body string true "Tag to restart"
-// @Status 200 "Empty String"OK
-// @Failure 400 "Empty String"BadRequests
+// @Status 200
+// @Failure 400
 // @Router /restart [post]
 func RestartByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
@@ -79,8 +79,8 @@ func RestartByTag(wr http.ResponseWriter, req *http.Request) {
 // @Accept json
 // @Produce json
 // @Param request body string true "Tag to pause"
-// @Status 200 "Empty String"OK 
-// @Failure 400 "Empty String"BadRequest
+// @Status 200 
+// @Failure 400
 // @Router /pause [post]
 func PauseByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
@@ -108,8 +108,8 @@ func PauseByTag(wr http.ResponseWriter, req *http.Request) {
 // @Accept json
 // @Produce json
 // @Param request body string true "Tag to resume"
-// @Status 200 "Empty String"OK
-// @Failure 400 "Empty String"BadRequest
+// @Status 200
+// @Failure 400
 // @Router /resume [post]
 func ResumeByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
@@ -137,8 +137,8 @@ func ResumeByTag(wr http.ResponseWriter, req *http.Request) {
 // @Accept json
 // @Produce json
 // @Param request body string true "Tag to start"
-// @Status 200 "Empty String"OK
-// @Failure 400 "Empty String"BadRequest
+// @Status 200
+// @Failure 400
 // @Router /start [post]
 func StartByTag(wr http.ResponseWriter, req *http.Request) {
     forTagBytes, err := io.ReadAll(req.Body)
@@ -265,8 +265,8 @@ N; /proxy_pass .*:%s;/ d;
 // @Accept json
 // @Produce json
 // @Param request body string true "Tag to delete"
-// @Status 200 "Empty String"OK
-// @Failure 400 "Empty String"BadRequest 
+// @Status 200
+// @Failure 400 
 // @Router /delete [post]
 func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     portDeleteMutex.Lock()
