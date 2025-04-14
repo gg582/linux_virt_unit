@@ -294,19 +294,19 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
 
     if found {
         found, port := db.FindPortByTag(foundTag)
-        if err != nil {
+        if found == false {
             log.Printf("DeleteByTag: Failed to convert ServerPort to integer: %v", err)
             http.Error(wr, "Internal server error", http.StatusInternalServerError)
             return
         }
         log.Printf("DeleteByTag: Port to return: %d", port)
 
-        if DeleteNginxConfig(p) != nil {
+        if DeleteNginxConfig(port) != nil {
             log.Println("DeleteByTag: (nginx) eNginx policy modification failed")
         }
         PORT_LIST = DeleteFromListByValue(PORT_LIST, port)
 
-        filter := bson.D{{"tag": stringForTag}}
+        filter := bson.D{{"tag", stringForTag}}
         _, err = db.ContainerInfoCollection.DeleteOne(context.Background(), filter)
         if err != nil {
             log.Printf("DeleteByTag: MongoDB DeleteOne failed: %v", err)

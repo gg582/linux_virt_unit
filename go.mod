@@ -2,8 +2,6 @@ module github.com/yoonjin67/linux_virt_unit
 
 go 1.23.0
 
-toolchain go1.23.0
-
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/lxc/incus v0.7.0
