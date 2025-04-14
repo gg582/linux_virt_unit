@@ -73,6 +73,30 @@ func FindTag(tag string) (bool, string) {
 	return false, ""
 }
 
+func FindPortByTag(tag string) (bool, int) {
+    ctx := context.Background()
+    cur, err := ContainerInfoCollection.Find(ctx, bson.M{})
+    if err != nil {
+        log.Println("FindPortByTag: Failed to fetch container list:", err)
+        return false, -1
+    }
+    defer cur.Close(ctx)
+
+    for cur.Next(ctx) {
+        var info linux_virt_unit.ContainerInfo
+        if err := cur.Decode(&info); err != nil {
+            continue
+        }
+        if info.TAG == tag {
+            port, err := strconv.Atoi(info.TAG)
+            if err != nil {
+                return true, port
+            }
+        }
+    }
+    return false, -1
+}
+
 // FindPort manually scans the collection to find if a port exists
 func FindPort(port int) (bool, int) {
 	ctx := context.Background()

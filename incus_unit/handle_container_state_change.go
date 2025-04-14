@@ -293,21 +293,20 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     found, foundTag := db.FindTag(stringForTag)
 
     if found {
-        p32, err := strconv.Atoi(foundTag)
+        found, port := db.FindPortByTag(foundTag)
         if err != nil {
             log.Printf("DeleteByTag: Failed to convert ServerPort to integer: %v", err)
             http.Error(wr, "Internal server error", http.StatusInternalServerError)
             return
         }
-        p := int(p32)
-        log.Printf("DeleteByTag: Port to return: %d", p)
+        log.Printf("DeleteByTag: Port to return: %d", port)
 
         if DeleteNginxConfig(p) != nil {
             log.Println("DeleteByTag: (nginx) eNginx policy modification failed")
         }
-        PORT_LIST = DeleteFromListByValue(PORT_LIST, int(p))
+        PORT_LIST = DeleteFromListByValue(PORT_LIST, port)
 
-        filter := bson.M{"tag": stringForTag}
+        filter := bson.D{{"tag": stringForTag}}
         _, err = db.ContainerInfoCollection.DeleteOne(context.Background(), filter)
         if err != nil {
             log.Printf("DeleteByTag: MongoDB DeleteOne failed: %v", err)
@@ -331,6 +330,10 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
         return
     }
 }
+
+
+
+
 
 
 // DeleteFromListByValue removes a specific value from an integer slice.

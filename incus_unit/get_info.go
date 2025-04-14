@@ -25,20 +25,6 @@ import (
     //custom modules
 )
 
-// GetContainerInfo retrieves the state of a container.
-func GetContainerInfo(tag string, info linux_virt_unit.ContainerInfo) linux_virt_unit.ContainerInfo {
-    state, _, err := IncusCli.GetInstanceState(tag)
-    if err != nil {
-        log.Printf("GetContainerInfo: Failed to get instance state for tag '%s': %v", tag, err)
-    }
-    // Process the resulting string
-    info.VMStatus = state.Status
-
-    // Output the result
-    log.Printf("GetContainerInfo: State of container '%s': %s", tag, info.VMStatus)
-    return info
-}
-
 
 // getTAG generates a unique tag for a container.
 func getTAG(mydir string, tag string) string {
