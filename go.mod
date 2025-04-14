@@ -1,8 +1,8 @@
 module github.com/yoonjin67/linux_virt_unit
 
-go 1.23.0
+go 1.22.0
 
-toolchain go1.23.8
+toolchain go1.22.2
 
 require (
 	github.com/gorilla/mux v1.8.1
