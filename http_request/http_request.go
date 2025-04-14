@@ -45,13 +45,13 @@ func InitHttpRequest() {
     // Server configuration.
     srv := &http.Server{
         Handler:     linux_virt_unit.LinuxVirtualizationAPIRouter,
-        Addr:    ":32000",
+        Addr:    ":443",
         ReadTimeout: 15 * time.Second,
         WriteTimeout: 15 * time.Second,
         IdleTimeout: 60 * time.Second,
     }
 
-    log.Printf("Starting server on port 32000")
+    log.Printf("Starting server on port 443: for gh deploy")
 
     // Start HTTPS server.
     if err := srv.ListenAndServeTLS(certfile, keyfile); err != nil && err != http.ErrServerClosed {
