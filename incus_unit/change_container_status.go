@@ -39,6 +39,7 @@ func ChangeState(tag string, newState string) error {
         req := api.InstanceStatePut{
             Action:  "stop",
             Timeout: 30,
+            Force  : true,
         }
         op, err := IncusCli.UpdateInstanceState(tag, req, "")
         if err != nil {
