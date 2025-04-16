@@ -16,16 +16,6 @@ import (
     "go.mongodb.org/mongo-driver/bson"
 )
 
-// ChangeStateHandler godoc
-// @Summary Change container state
-// @Description Change the state of a container using a tag and action
-// @Accept json
-// @Produce json
-// @Param request body tag true "container tag to change"
-// @Success 200 {string} string "State change successful"
-// @Failure 400 {string} string "Bad request"
-// @Failure 500 {string} string "Internal server error"
-// @Router /changestate [post]
 func ChangeStateHandler(state string) http.HandlerFunc {
     return func(wr http.ResponseWriter, req *http.Request) {
         tagBytes, err := io.ReadAll(req.Body)
