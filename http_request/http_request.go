@@ -25,11 +25,11 @@ func InitHttpRequest() {
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/create", incus_unit.CreateContainer).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/request", incus_unit.GetContainers).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/delete", incus_unit.DeleteByTag).Methods("POST")
-    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/stop", incus_unit.StopByTag).Methods("POST")
-    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/start", incus_unit.StartByTag).Methods("POST")
-    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/pause", incus_unit.PauseByTag).Methods("POST")
-    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/resume", incus_unit.ResumeByTag).Methods("POST")
-    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/restart", incus_unit.RestartByTag).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/stop", incus_unit.ChangeStateHandler("stop")).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/start", incus_unit.ChangeStateHandler("start")).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/pause", incus_unit.ChangeStateHandler("pause")).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/resume", incus_unit.ChangeStateHandler("resume")).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/restart", incus_unit.ChangeStateHandler("restart")).Methods("POST")
 
     // Swagger UI setup.
     swaggerURL := "/docs/swagger.json"
