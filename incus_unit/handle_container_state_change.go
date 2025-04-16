@@ -15,149 +15,38 @@ import (
     db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
     "go.mongodb.org/mongo-driver/bson"
 )
-// StopByTag godoc
-// @Summary Stop container by tag
-// @Description Stops a container with the specified tag.
+
+// ChangeStateHandler godoc
+// @Summary Change container state
+// @Description Change the state of a container using a tag and action
 // @Accept json
 // @Produce json
-// @Param request body string true "Tag to stop"
-// @Status 200 
-// @Failure 400
-// @Router /stop [post]
-func StopByTag(wr http.ResponseWriter, req *http.Request) {
-    forTagBytes, err := io.ReadAll(req.Body)
-    if err != nil {
-        log.Printf("StopByTag: Failed to read request body: %v", err)
-        http.Error(wr, err.Error(), http.StatusBadRequest)
-        return
+// @Param request body tag true "container tag to change"
+// @Success 200 {string} string "State change successful"
+// @Failure 400 {string} string "Bad request"
+// @Failure 500 {string} string "Internal server error"
+// @Router /changestate [post]
+func ChangeStateHandler(state string) http.HandlerFunc {
+    return func(wr http.ResponseWriter, req *http.Request) {
+        tagBytes, err := io.ReadAll(req.Body)
+        if err != nil {
+            log.Printf("%s: Failed to read request body: %v", state, err)
+            http.Error(wr, err.Error(), http.StatusBadRequest)
+            return
+        }
+    
+        Tag := strings.Trim(string(tagBytes), "\"")
+        log.Printf("%s: Received request to stop container with tag '%s'.", state, Tag)
+        err = ChangeState(Tag, "stop")
+        if err != nil {
+            log.Printf("%s: ChangeState failed for tag '%s': %v", state, Tag, err)
+            http.Error(wr, err.Error(), http.StatusInternalServerError)
+            return
+        }
+        wr.WriteHeader(http.StatusOK)
+        wr.Write([]byte(fmt.Sprintf("%s command sent for container '%s'", state, Tag)))
+        
     }
-
-    stringForTag := strings.Trim(string(forTagBytes), "\"")
-    log.Printf("StopByTag: Received request to stop container with tag '%s'.", stringForTag)
-    err = ChangeState(stringForTag, "stop")
-    if err != nil {
-        log.Printf("StopByTag: ChangeState failed for tag '%s': %v", stringForTag, err)
-        http.Error(wr, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    wr.WriteHeader(http.StatusOK)
-    wr.Write([]byte(fmt.Sprintf("Stop command sent for container '%s'", stringForTag)))
-}
-
-// RestartByTag godoc
-// @Summary Restart container by tag
-// @Description Restarts a container with the specified tag.
-// @Accept json
-// @Produce json
-// @Param request body string true "Tag to restart"
-// @Status 200
-// @Failure 400
-// @Router /restart [post]
-func RestartByTag(wr http.ResponseWriter, req *http.Request) {
-    forTagBytes, err := io.ReadAll(req.Body)
-    if err != nil {
-        log.Printf("RestartByTag: Failed to read request body: %v", err)
-        http.Error(wr, err.Error(), http.StatusBadRequest)
-        return
-    }
-
-    stringForTag := strings.Trim(string(forTagBytes), "\"")
-    log.Printf("RestartByTag: Received request to restart container with tag '%s'.", stringForTag)
-    err = ChangeState(stringForTag, "restart")
-    if err != nil {
-        log.Printf("RestartByTag: ChangeState failed for tag '%s': %v", stringForTag, err)
-        http.Error(wr, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    wr.WriteHeader(http.StatusOK)
-    wr.Write([]byte(fmt.Sprintf("Restart command sent for container '%s'", stringForTag)))
-}
-
-// PauseByTag godoc
-// @Summary Pause container by tag
-// @Description Pauses a container with the specified tag.
-// @Accept json
-// @Produce json
-// @Param request body string true "Tag to pause"
-// @Status 200 
-// @Failure 400
-// @Router /pause [post]
-func PauseByTag(wr http.ResponseWriter, req *http.Request) {
-    forTagBytes, err := io.ReadAll(req.Body)
-    if err != nil {
-        log.Printf("PauseByTag: Failed to read request body: %v", err)
-        http.Error(wr, err.Error(), http.StatusBadRequest)
-        return
-    }
-
-    stringForTag := strings.Trim(string(forTagBytes), "\"")
-    log.Printf("PauseByTag: Received request to pause container with tag '%s'.", stringForTag)
-    err = ChangeState(stringForTag, "freeze")
-    if err != nil {
-        log.Printf("PauseByTag: ChangeState failed for tag '%s': %v", stringForTag, err)
-        http.Error(wr, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    wr.WriteHeader(http.StatusOK)
-    wr.Write([]byte(fmt.Sprintf("Pause command sent for container '%s'", stringForTag)))
-}
-
-// ResumeByTag godoc
-// @Summary Resume container by tag
-// @Description Resumes a container with the specified tag.
-// @Accept json
-// @Produce json
-// @Param request body string true "Tag to resume"
-// @Status 200
-// @Failure 400
-// @Router /resume [post]
-func ResumeByTag(wr http.ResponseWriter, req *http.Request) {
-    forTagBytes, err := io.ReadAll(req.Body)
-    if err != nil {
-        log.Printf("PauseByTag: Failed to read request body: %v", err)
-        http.Error(wr, err.Error(), http.StatusBadRequest)
-        return
-    }
-
-    stringForTag := strings.Trim(string(forTagBytes), "\"")
-    log.Printf("PauseByTag: Received request to pause container with tag '%s'.", stringForTag)
-    err = ChangeState(stringForTag, "unfreeze")
-    if err != nil {
-        log.Printf("PauseByTag: ChangeState failed for tag '%s': %v", stringForTag, err)
-        http.Error(wr, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    wr.WriteHeader(http.StatusOK)
-    wr.Write([]byte(fmt.Sprintf("Pause command sent for container '%s'", stringForTag)))
-}
-
-// StartByTag godoc
-// @Summary Start container by tag
-// @Description Starts a container with the specified tag.
-// @Accept json
-// @Produce json
-// @Param request body string true "Tag to start"
-// @Status 200
-// @Failure 400
-// @Router /start [post]
-func StartByTag(wr http.ResponseWriter, req *http.Request) {
-    forTagBytes, err := io.ReadAll(req.Body)
-    if err != nil {
-        log.Printf("StartByTag: Failed to read request body: %v", err)
-        http.Error(wr, err.Error(), http.StatusBadRequest)
-        return
-    }
-
-    stringForTag := strings.Trim(string(forTagBytes), "\"")
-    log.Printf("StartByTag: Received request to start container with tag '%s'.", stringForTag)
-    err = ChangeState(stringForTag, "start")
-    if err != nil {
-        log.Printf("StartByTag: ChangeState failed for tag '%s': %v", stringForTag, err)
-        http.Error(wr, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    wr.WriteHeader(http.StatusOK)
-    wr.Write([]byte(fmt.Sprintf("Start command sent for container '%s'", stringForTag)))
 }
 
 // DeleteContainerByName stops and then deletes an Incus container by its tag.
@@ -272,16 +161,16 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     portDeleteMutex.Lock()
     defer portDeleteMutex.Unlock()
     log.Println("DeleteByTag: Start.")
-    forTagBytes, err := io.ReadAll(req.Body)
+    tagBytes, err := io.ReadAll(req.Body)
     if err != nil {
         log.Printf("DeleteByTag: Failed to read request Body: %v", err)
         http.Error(wr, err.Error(), http.StatusBadRequest)
         return
     }
-    stringForTag := strings.Trim(string(forTagBytes), "\"")
-    log.Printf("DeleteByTag: Received request to delete container with tag '%s'.", stringForTag)
+    Tag := strings.Trim(string(tagBytes), "\"")
+    log.Printf("DeleteByTag: Received request to delete container with tag '%s'.", Tag)
 
-    cur, err := db.ContainerInfoCollection.Find(context.Background(), bson.D{{Key: "TAG", Value: stringForTag}})
+    cur, err := db.ContainerInfoCollection.Find(context.Background(), bson.D{{Key: "TAG", Value: Tag}})
     if err != nil {
         log.Printf("DeleteByTag: MongoDB Find failed: %v", err)
         http.Error(wr, err.Error(), http.StatusInternalServerError)
@@ -290,7 +179,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     defer cur.Close(context.Background())
     log.Println("DeleteByTag: MongoDB Find completed.")
 
-    found, foundTag := db.FindTag(stringForTag)
+    found, foundTag := db.FindTag(Tag)
 
     if found {
         found, port := db.FindPortByTag(foundTag)
@@ -306,7 +195,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
         }
         PORT_LIST = DeleteFromListByValue(PORT_LIST, port)
 
-        filter := bson.D{{"tag", stringForTag}}
+        filter := bson.D{{"tag", Tag}}
         _, err = db.ContainerInfoCollection.DeleteOne(context.Background(), filter)
         if err != nil {
             log.Printf("DeleteByTag: MongoDB DeleteOne failed: %v", err)
@@ -315,18 +204,18 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
         }
 
         log.Println("DeleteByTag: Calling DeleteContainerByName.")
-        err = DeleteContainerByName(stringForTag)
+        err = DeleteContainerByName(Tag)
         if err != nil {
             log.Printf("DeleteByTag: DeleteContainerByName failed: %v", err)
         } else {
             log.Println("DeleteByTag: DeleteContainerByName Success.")
         }
         wr.WriteHeader(http.StatusOK)
-        wr.Write([]byte(fmt.Sprintf("Container with tag '%s' deleted", stringForTag)))
+        wr.Write([]byte(fmt.Sprintf("Container with tag '%s' deleted", Tag)))
         return
     } else {
-        log.Printf("DeleteByTag: Container with tag '%s' not found.", stringForTag)
-        http.Error(wr, fmt.Sprintf("Container with tag '%s' not found", stringForTag), http.StatusNotFound)
+        log.Printf("DeleteByTag: Container with tag '%s' not found.", Tag)
+        http.Error(wr, fmt.Sprintf("Container with tag '%s' not found", Tag), http.StatusNotFound)
         return
     }
 }
