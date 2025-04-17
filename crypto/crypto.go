@@ -17,7 +17,7 @@ const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456
 
 
 func DecryptString(ct string, key string, iv string) (string, error) {
-    // Key 디코딩 및 검증
+    // Key Decode, and Verification`
     key_bytes, err := base64.StdEncoding.DecodeString(key)
     if err != nil {
         return "", fmt.Errorf("invalid key: %v", err)
@@ -26,7 +26,7 @@ func DecryptString(ct string, key string, iv string) (string, error) {
         return "", fmt.Errorf("invalid key length: %d (must be 16, 24, or 32 bytes)", len(key_bytes))
     }
 
-    // IV 디코딩 및 검증
+    // IV Verification
     iv_bytes, err := base64.StdEncoding.DecodeString(iv)
     if err != nil {
         return "", fmt.Errorf("invalid iv: %v", err)
@@ -35,7 +35,7 @@ func DecryptString(ct string, key string, iv string) (string, error) {
         return "", fmt.Errorf("invalid iv length: %d (must be %d bytes)", len(iv_bytes), aes.BlockSize)
     }
 
-    // 암호문 디코딩 및 검증
+    // Decode crypted text
     ct_bytes, err := base64.StdEncoding.DecodeString(ct)
     if err != nil {
         return "", fmt.Errorf("invalid ciphertext: %v", err)
@@ -44,7 +44,7 @@ func DecryptString(ct string, key string, iv string) (string, error) {
         return "", fmt.Errorf("ciphertext length %d is not a multiple of block size %d", len(ct_bytes), aes.BlockSize)
     }
 
-    // AES 복호화
+    // AES-256 Decryption
     block, err := aes.NewCipher(key_bytes)
     if err != nil {
         return "", fmt.Errorf("failed to create cipher: %v", err)
@@ -53,7 +53,7 @@ func DecryptString(ct string, key string, iv string) (string, error) {
     pt_bytes := make([]byte, len(ct_bytes))
     mode.CryptBlocks(pt_bytes, ct_bytes)
 
-    // 패딩 제거
+    // Delete paddings
     if len(pt_bytes) == 0 {
         return "", fmt.Errorf("decrypted plaintext is empty")
     }
@@ -70,6 +70,9 @@ func DecryptString(ct string, key string, iv string) (string, error) {
 
     return string(pt_bytes), nil
 }
+
+//SHA hash, currently not using this, it may be useful for remote CLI manager
+//which will be developed in summer
 func sha256_hash(password string) string {
     hasher := sha256.New()
     hasher.Write([]byte(password))
