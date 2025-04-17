@@ -27,7 +27,7 @@ func ChangeStateHandler(state string) http.HandlerFunc {
     
         Tag := strings.Trim(string(tagBytes), "\"")
         log.Printf("%s: Received request to stop container with tag '%s'.", state, Tag)
-        err = ChangeState(Tag, "stop")
+        err = ChangeState(Tag, state)
         if err != nil {
             log.Printf("%s: ChangeState failed for tag '%s': %v", state, Tag, err)
             http.Error(wr, err.Error(), http.StatusInternalServerError)
