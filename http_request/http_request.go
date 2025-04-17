@@ -27,8 +27,8 @@ func InitHttpRequest() {
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/delete", incus_unit.DeleteByTag).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/stop", incus_unit.ChangeStateHandler("stop")).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/start", incus_unit.ChangeStateHandler("start")).Methods("POST")
-    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/pause", incus_unit.ChangeStateHandler("pause")).Methods("POST")
-    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/resume", incus_unit.ChangeStateHandler("resume")).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/freeze", incus_unit.ChangeStateHandler("pause")).Methods("POST")
+    linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/unfreeze", incus_unit.ChangeStateHandler("resume")).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/restart", incus_unit.ChangeStateHandler("restart")).Methods("POST")
 
     // Swagger UI setup.
