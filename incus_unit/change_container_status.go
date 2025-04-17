@@ -55,11 +55,11 @@ func ChangeState(tag string, newState string) error {
     }
     log.Printf("ChangeState: Incus operation %s completed for tag '%s'.", newState, tag)
 
-    // Update DB status t after Incus operation
+    // Update DB status after Incus operation
     _, err = db.ContainerInfoCollection.UpdateOne(
         context.Background(),
         bson.M{"TAG": tag},
-        bson.D{{"$set", bson.M{"vmstatus": newState}}},
+        bson.D{{"$set", bson.M{"vmstatus": inst.Status}}},
     )
     if err != nil {
         log.Printf("ChangeState: MongoDB update to %s failed for tag '%s': %v", newState, tag, err)
