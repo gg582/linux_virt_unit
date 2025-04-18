@@ -16,7 +16,6 @@ type ContainerQueue struct {
 	Tasks      chan linux_virt_unit.ContainerInfo
 	wg         sync.WaitGroup
 	StateTasks chan StateChangeTarget
-	wg_state   sync.WaitGroup
 }
 
 var WorkQueue *ContainerQueue
@@ -27,9 +26,18 @@ func InitWorkQueue() {
 		Tasks:      make(chan linux_virt_unit.ContainerInfo, 1024),
 		wg:         sync.WaitGroup{},
 		StateTasks: make(chan StateChangeTarget, 1024),
-		wg_state:   sync.WaitGroup{},
 	}
 	log.Println("InitWorkQueue: Container work queue initialized.")
+}
+
+
+// Start starts the worker goroutines for the container queue.
+func (q *ContainerQueue) Start(numWorkers int) {
+	log.Printf("Start: Starting %d worker goroutines.", numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		q.wg.Add(1)
+		go q.worker()
+	}
 }
 
 // Stop stops the worker goroutines.
@@ -39,8 +47,6 @@ func (q *ContainerQueue) Stop() {
 	close(q.StateTasks)
 
 	q.wg.Wait()
-	q.wg_state.Wait()
-
 	log.Println("Stop: All worker goroutines stopped.")
 }
 
@@ -54,7 +60,13 @@ func (q *ContainerQueue) worker() {
 		log.Println("worker: Container creation task completed.")
 	}
 	for target := range q.StateTasks {
-		ChangeState(target.Tag, target.Status)
+        if target.Status == "delete" {
+            DeleteContainerByName(target.Tag)
+        }
+        err := ChangeState(target.Tag, target.Status)
+        if err != nil {
+            log.Printf("Status change failed on task %s, err: %v\n", target.Status, err)
+        }
 	}
 	log.Println("worker: Worker goroutine finished.")
 }

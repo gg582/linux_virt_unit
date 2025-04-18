@@ -44,14 +44,6 @@ func getTAG(mydir string, tag string) string {
 	return tagRet
 }
 
-// Start starts the worker goroutines for the container queue.
-func (q *ContainerQueue) Start(numWorkers int) {
-	log.Printf("Start: Starting %d worker goroutines.", numWorkers)
-	for i := 0; i < numWorkers; i++ {
-		q.wg.Add(1)
-		go q.worker()
-	}
-}
 
 // @Summary Get containers
 // @Description GetContainers retrieves a list of containers for a specific user by manually scanning the collection.

@@ -203,20 +203,22 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
 		}
 
 		log.Println("DeleteByTag: Calling DeleteContainerByName.")
-		err = DeleteContainerByName(Tag)
-		if err != nil {
-			log.Printf("DeleteByTag: DeleteContainerByName failed: %v", err)
-		} else {
-			log.Println("DeleteByTag: DeleteContainerByName Success.")
+        info := StateChangeTarget {
+            Tag: Tag,
+            Status: "delete",
+        }
+		select {
+		case WorkQueue.StateTasks <- info:
+			log.Println("CreateContainer: Added container creation task to the work queue.")
+			wr.WriteHeader(http.StatusOK)
+			wr.Write([]byte(fmt.Sprintf("%s command sent for container '%s'", "delete", Tag)))
+			return
+		default:
+			log.Println("CreateContainer: Work queue is full.")
+			http.Error(wr, "Server is busy", http.StatusServiceUnavailable)
+			return
 		}
-		wr.WriteHeader(http.StatusOK)
-		wr.Write([]byte(fmt.Sprintf("Container with tag '%s' deleted", Tag)))
-		return
-	} else {
-		log.Printf("DeleteByTag: Container with tag '%s' not found.", Tag)
-		http.Error(wr, fmt.Sprintf("Container with tag '%s' not found", Tag), http.StatusNotFound)
-		return
-	}
+    }
 }
 
 // DeleteFromListByValue removes a specific value from an integer slice.
