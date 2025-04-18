@@ -90,7 +90,7 @@ Content-Type: application/json
 
 ## ⚙️ Requirements
 
-- Go 1.20 or higher
+- Go 1.23 or higher
 - Incus installed (NOT LXD)
 - MongoDB 6.0
 - Ubuntu host with container support
