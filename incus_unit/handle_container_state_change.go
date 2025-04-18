@@ -34,12 +34,12 @@ func ChangeStateHandler(state string) http.HandlerFunc {
 
 		select {
 		case WorkQueue.StateTasks <- info:
-			log.Println("CreateContainer: Added container creation task to the work queue.")
+			log.Printf("ChangeContainer: Added container %s task to the work queue.\n", state)
 			wr.WriteHeader(http.StatusOK)
 			wr.Write([]byte(fmt.Sprintf("%s command sent for container '%s'", state, Tag)))
 			return
 		default:
-			log.Println("CreateContainer: Work queue is full.")
+			log.Println("ChangeContainer: Work queue is full.")
 			http.Error(wr, "Server is busy", http.StatusServiceUnavailable)
 			return
 		}
