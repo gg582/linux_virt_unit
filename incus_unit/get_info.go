@@ -1,100 +1,103 @@
 package incus_unit
 
 import (
-    "net/http"
-    "encoding/json"
-    //about http requests
+	"encoding/json"
+	"net/http"
+	//about http requests
 
-    "log"
-    //logging 
+	"log"
+	//logging
 
-    "context"
-    "os"
-    "io"
-    "time"
-    //file io, and contexts
-    
-    "github.com/lxc/incus/shared/api"
-    //incus api
-    "go.mongodb.org/mongo-driver/bson"
-    //mongodb bson string
+	"context"
+	"io"
+	"os"
+	"time"
+	//file io, and contexts
 
-    "github.com/yoonjin67/linux_virt_unit"
-    linux_virt_unit_crypto "github.com/yoonjin67/linux_virt_unit/crypto"
-    db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
-    //custom modules
+	"github.com/lxc/incus/shared/api"
+	//incus api
+	"go.mongodb.org/mongo-driver/bson"
+	//mongodb bson string
+
+	"github.com/yoonjin67/linux_virt_unit"
+	linux_virt_unit_crypto "github.com/yoonjin67/linux_virt_unit/crypto"
+	db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
+	//custom modules
 )
-
 
 // getTAG generates a unique tag for a container.
 func getTAG(mydir string, tag string) string {
-    var err error
-    var file *os.File
-    filePath := mydir + "/container/latest_access"
-    file, err = os.OpenFile(filePath, os.O_RDWR, os.FileMode(0644))
-    if err != nil {
-        log.Printf("getTAG: Error opening latest_access file '%s': %v", filePath, err)
-    }
-    defer file.Close()
-    tagRet := tag + "-" + linux_virt_unit_crypto.RandStringBytes(20)
-    _, err = file.Write([]byte(tagRet))
-    if err != nil {
-        log.Printf("getTAG: Error writing tag to file '%s': %v", filePath, err)
-    }
-    log.Printf("getTAG: Generated tag '%s' for user '%s'.", tagRet, tag)
-    return tagRet
+	var err error
+	var file *os.File
+	filePath := mydir + "/container/latest_access"
+	file, err = os.OpenFile(filePath, os.O_RDWR, os.FileMode(0644))
+	if err != nil {
+		log.Printf("getTAG: Error opening latest_access file '%s': %v", filePath, err)
+	}
+	defer file.Close()
+	tagRet := tag + "-" + linux_virt_unit_crypto.RandStringBytes(20)
+	_, err = file.Write([]byte(tagRet))
+	if err != nil {
+		log.Printf("getTAG: Error writing tag to file '%s': %v", filePath, err)
+	}
+	log.Printf("getTAG: Generated tag '%s' for user '%s'.", tagRet, tag)
+	return tagRet
 }
+
 // Start starts the worker goroutines for the container queue.
 func (q *ContainerQueue) Start(numWorkers int) {
-    log.Printf("Start: Starting %d worker goroutines.", numWorkers)
-    for i := 0; i < numWorkers; i++ {
-        q.wg.Add(1)
-        go q.worker()
-    }
+	log.Printf("Start: Starting %d worker goroutines.", numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		q.wg.Add(1)
+		go q.worker()
+	}
 }
-
-
 
 // @Summary Get containers
 // @Description GetContainers retrieves a list of containers for a specific user by manually scanning the collection.
 // @Accept json
 // @Produce json
 // @Param request body linux_virt_unit.UserInfo true "User information"
-//{
-//    "username": "user123", 
-//    "username_iv": "someIV1", 
-//    "password": "passwordHash", 
-//    "key": "encryptionKey", 
-//}
+//
+//	{
+//	   "username": "user123",
+//	   "username_iv": "someIV1",
+//	   "password": "passwordHash",
+//	   "key": "encryptionKey",
+//	}
+//
 // @Success 200 {array} linux_virt_unit.ContainerInfo "Created containers list"
-//[
-//{ 
-//    "username": "user123", 
-//    "username_iv": "someIV1", 
-//    "password": "encryptedPassword", 
-//    "password_iv": "someIV2", 
-//    "key": "encryptionKey", 
-//    "tag": "ubuntu20", 
-//    "serverip": "10.72.1.100", 
-//    "serverport": "27020", 
-//    "vmstatus": "running", 
-//    "distro": "ubuntu", 
-//    "version": "20.04" 
-//}, 
-//{
-//    "username": "user122", 
-//    "username_iv": "someIV1", 
-//    "password": "encryptedPassword", 
-//    "password_iv": "someIV2", 
-//    "key": "encryptionKey",
-//    "tag": "ubuntu24", 
-//    "serverip": "10.72.1.101", 
-//    "serverport": "27023", 
-//    "vmstatus": "running", 
-//    "distro": "ubuntu", 
-//    "virtual": "24.04", 
-//},
-//]
+// [
+// {
+//
+//	   "username": "user123",
+//	   "username_iv": "someIV1",
+//	   "password": "encryptedPassword",
+//	   "password_iv": "someIV2",
+//	   "key": "encryptionKey",
+//	   "tag": "ubuntu20",
+//	   "serverip": "10.72.1.100",
+//	   "serverport": "27020",
+//	   "vmstatus": "running",
+//	   "distro": "ubuntu",
+//	   "version": "20.04"
+//	},
+//
+//	{
+//	   "username": "user122",
+//	   "username_iv": "someIV1",
+//	   "password": "encryptedPassword",
+//	   "password_iv": "someIV2",
+//	   "key": "encryptionKey",
+//	   "tag": "ubuntu24",
+//	   "serverip": "10.72.1.101",
+//	   "serverport": "27023",
+//	   "vmstatus": "running",
+//	   "distro": "ubuntu",
+//	   "virtual": "24.04",
+//	},
+//
+// ]
 // @Failure 400
 // @Router /request [post]
 func GetContainers(wr http.ResponseWriter, req *http.Request) {
@@ -117,7 +120,7 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
 	}
 
 	log.Printf("GetContainers: Received request for containers of user '%s' (encrypted).", in.Username)
-    //Received request (encrypted)
+	//Received request (encrypted)
 
 	// Decrypt the username
 	decodedUsername, err := linux_virt_unit_crypto.DecryptString(in.Username, in.Key, in.UsernameIV)
@@ -182,5 +185,3 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
 	wr.Write(resp)
 	log.Printf("GetContainers: Returned %d containers for user '%s'.", len(jsonList), decodedUsername)
 }
-
-

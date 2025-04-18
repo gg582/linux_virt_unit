@@ -1,25 +1,26 @@
 package incus_unit
+
 import (
-    "context"
-    "io"
-    "encoding/json"
-    "net/http"
-    "time"
-    //for file io, net  connection
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"time"
+	//for file io, net  connection
 
-    "log"
-    //for logging
+	"log"
+	//for logging
 
-    "go.mongodb.org/mongo-driver/bson"
-    "golang.org/x/crypto/bcrypt"
-    //for mongodb
+	"go.mongodb.org/mongo-driver/bson"
+	"golang.org/x/crypto/bcrypt"
+	//for mongodb
 
-    "github.com/yoonjin67/linux_virt_unit"
-    linux_virt_unit_crypto "github.com/yoonjin67/linux_virt_unit/crypto"
-    db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
-    //custom packages
-
+	"github.com/yoonjin67/linux_virt_unit"
+	linux_virt_unit_crypto "github.com/yoonjin67/linux_virt_unit/crypto"
+	db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
+	//custom packages
 )
+
 // CheckUserExists checks if a user exists in the database.
 func CheckUserExists(username string, password string) bool {
 	const maxWait = time.Second
@@ -59,13 +60,13 @@ func CheckUserExists(username string, password string) bool {
 }
 
 // Register godoc
-// @Summary Register a new user 
-// @Description Registers a new user 
+// @Summary Register a new user
+// @Description Registers a new user
 // @Accept json
 // @Produce json
 // @Param request body linux_virt_unit.UserInfo true "User registration request"
 // @Success 200 body string true "User Registration Done."
-// @Failure 400 
+// @Failure 400
 // @Router /register [post]
 func Register(wr http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -114,4 +115,3 @@ func Register(wr http.ResponseWriter, req *http.Request) {
 	log.Printf("Register: User '%s' registered successfully", username)
 	wr.Write([]byte("User Registration Done"))
 }
-

@@ -1,21 +1,22 @@
 package mongo_connect
 
 import (
-    "net/http"
-    "strconv"
-    "context"
-    "encoding/json"
-    "log"
-    "time"
-    "io"
-    "go.mongodb.org/mongo-driver/bson"
-    "go.mongodb.org/mongo-driver/mongo"
-    "go.mongodb.org/mongo-driver/mongo/options"
+	"context"
+	"encoding/json"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"io"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
 
-    linux_virt_unit "github.com/yoonjin67/linux_virt_unit"
+	linux_virt_unit "github.com/yoonjin67/linux_virt_unit"
 )
 
 const MAX_PORT = 65535
+
 var ContainerInfoCollection, UserInfoCollection *mongo.Collection
 
 var MongoClient *mongo.Client // Declared globally for MongoDB operations
@@ -74,27 +75,27 @@ func FindTag(tag string) (bool, string) {
 }
 
 func FindPortByTag(tag string) (bool, int) {
-    ctx := context.Background()
-    cur, err := ContainerInfoCollection.Find(ctx, bson.M{})
-    if err != nil {
-        log.Println("FindPortByTag: Failed to fetch container list:", err)
-        return false, -1
-    }
-    defer cur.Close(ctx)
+	ctx := context.Background()
+	cur, err := ContainerInfoCollection.Find(ctx, bson.M{})
+	if err != nil {
+		log.Println("FindPortByTag: Failed to fetch container list:", err)
+		return false, -1
+	}
+	defer cur.Close(ctx)
 
-    for cur.Next(ctx) {
-        var info linux_virt_unit.ContainerInfo
-        if err := cur.Decode(&info); err != nil {
-            continue
-        }
-        if info.TAG == tag {
-            port, err := strconv.Atoi(info.TAG)
-            if err != nil {
-                return true, port
-            }
-        }
-    }
-    return false, -1
+	for cur.Next(ctx) {
+		var info linux_virt_unit.ContainerInfo
+		if err := cur.Decode(&info); err != nil {
+			continue
+		}
+		if info.TAG == tag {
+			port, err := strconv.Atoi(info.TAG)
+			if err != nil {
+				return true, port
+			}
+		}
+	}
+	return false, -1
 }
 
 // FindPort manually scans the collection to find if a port exists
@@ -189,39 +190,36 @@ func UseContainer(wr http.ResponseWriter, req *http.Request) {
 	wr.Write(resp)
 }
 
-
-
 func InitMongoDB() {
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-    var err error
-    MongoClient, err = mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
-    if err != nil {
-        log.Fatal(err)
-    }
+	var err error
+	MongoClient, err = mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    //Ping Test
-    err = MongoClient.Ping(context.Background(), nil)
-    if err != nil {
-        log.Fatal(err)
-    }
+	//Ping Test
+	err = MongoClient.Ping(context.Background(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    //obtain collections
+	//obtain collections
 
-    ContainerInfoCollection = MongoClient.Database("LVIRT_CONTAINER").Collection("Container Info Collections")
-    if SetupSort(ContainerInfoCollection) == false {
-        log.Println("Error setting up sort")
-    }
-    UserInfoCollection = MongoClient.Database("LVIRT_USER").Collection("User Collections")
+	ContainerInfoCollection = MongoClient.Database("LVIRT_CONTAINER").Collection("Container Info Collections")
+	if SetupSort(ContainerInfoCollection) == false {
+		log.Println("Error setting up sort")
+	}
+	UserInfoCollection = MongoClient.Database("LVIRT_USER").Collection("User Collections")
 
-    log.Println("MongoDB Connected")
+	log.Println("MongoDB Connected")
 }
 
 func CloseMongoDB() {
-    if MongoClient != nil {
-        MongoClient.Disconnect(context.Background())
-        log.Println("MongoDB Disconnected")
-    }
+	if MongoClient != nil {
+		MongoClient.Disconnect(context.Background())
+		log.Println("MongoDB Disconnected")
+	}
 }
-
