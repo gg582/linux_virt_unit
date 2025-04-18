@@ -36,7 +36,9 @@ func (q *ContainerQueue) Start(numWorkers int) {
 	log.Printf("Start: Starting %d worker goroutines.", numWorkers)
 	for i := 0; i < numWorkers; i++ {
 		q.wg.Add(1)
-		go q.worker()
+		go q.ContainerCreationWorker()
+		q.wg.Add(1)
+		go q.StateChangeWorker()
 	}
 }
 
@@ -51,7 +53,7 @@ func (q *ContainerQueue) Stop() {
 }
 
 // worker is the worker goroutine that processes container creation tasks.
-func (q *ContainerQueue) worker() {
+func (q *ContainerQueue) ContainerCreationWorker() {
 	defer q.wg.Done()
 	log.Println("worker: Worker goroutine started.")
 	for info := range q.Tasks {
@@ -59,6 +61,11 @@ func (q *ContainerQueue) worker() {
 		createContainer(info)
 		log.Println("worker: Container creation task completed.")
 	}
+	log.Println("worker: Worker goroutine finished.")
+}
+func (q *ContainerQueue) StateChangeWorker() {
+	defer q.wg.Done()
+	log.Println("worker: Worker goroutine started.")
 	for target := range q.StateTasks {
         if target.Status == "delete" {
             DeleteContainerByName(target.Tag)
@@ -69,4 +76,5 @@ func (q *ContainerQueue) worker() {
         }
 	}
 	log.Println("worker: Worker goroutine finished.")
+
 }
