@@ -166,24 +166,11 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 
 	port := strconv.Itoa(allocatedPort)
 	info.Serverport = port
-	_, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
 	// LOCK THE MUTEX HERE
 	// Port should not be duplicated
 	portMutex.Unlock()
-	if insertErr != nil {
-		log.Printf("createContainer: Cannot insert container info into MongoDB for tag '%s': %v", tag, insertErr)
-		err = DeleteContainerByName(tag)
-		if err != nil {
-			log.Printf("createContainer: Failed to delete potentially failed Incus container '%s': %v", tag, err)
-		} else {
-			log.Printf("createContainer: Attempted to delete Incus container '%s' after MongoDB insertion failure.", tag)
-		}
-	} else {
-		log.Printf("createContainer: Container info inserted into MongoDB for tag '%s'.", tag)
-	}
-
+	
 	log.Printf("createContainer: Allocated new port '%d' for tag '%s'.", allocatedPort, tag)
-
 	log.Printf("createContainer: Attempting to create container with tag '%s', port '%s', user '%s' password '%s'.", tag, port, username, password)
 
 	// Set a timeout for container creation
@@ -319,6 +306,19 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	nginxRestart := exec.Command("nginx", "-s", "reload")
 	nginxRestart.Run()
 	fmt.Println("Nginx configuration has been successfully updated.")
+
+    _, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
+    if insertErr != nil {
+    	log.Printf("createContainer: Cannot insert container info into MongoDB for tag '%s': %v", tag, insertErr)
+    	err = DeleteContainerByName(tag)
+    	if err != nil {
+    		log.Printf("createContainer: Failed to delete potentially failed Incus container '%s': %v", tag, err)
+    	} else {
+    		log.Printf("createContainer: Attempted to delete Incus container '%s' after MongoDB insertion failure.", tag)
+    	}
+    } else {
+    	log.Printf("createContainer: Container info inserted into MongoDB for tag '%s'.", tag)
+    }
 
 }
 
