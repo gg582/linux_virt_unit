@@ -42,8 +42,7 @@ var cancel context.CancelFunc
 var ADDR string = "http://hobbies.yoonjin2.kr"
 
 // Mutex to manage port allocation.
-var portMutex sync.Mutex
-var nginxMutex sync.Mutex
+var containerManageMutex sync.Mutex
 var portDeleteMutex sync.Mutex
 
 // TouchFile creates an empty file if it doesn't exist.
@@ -157,7 +156,8 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	log.Printf("createContainer: Generated tag '%s' for user '%s'.", tag, username)
 
 	// Allocate a unique port for the container
-	portMutex.Lock()
+	containerManageMutex.Lock()
+    defer containerManageMutex.Unlock()
 	allocatedPort, err := allocateUniquePort()
 	if err != nil {
 		log.Printf("createContainer: Failed to allocate a unique port for tag '%s': %v", tag, err)
@@ -168,7 +168,6 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	info.Serverport = port
 	// LOCK THE MUTEX HERE
 	// Port should not be duplicated
-	portMutex.Unlock()
 	
 	log.Printf("createContainer: Allocated new port '%d' for tag '%s'.", allocatedPort, tag)
 	log.Printf("createContainer: Attempting to create container with tag '%s', port '%s', user '%s' password '%s'.", tag, port, username, password)
@@ -196,7 +195,6 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	}
 
 	ChangeState(tag, "start")
-	nginxMutex.Lock()
 	cmdDelLastLine := exec.Command("bash", "-c", `tac "$0" | sed '0,/}/ s/}//' | tac > /tmp/temp.txt`, NGINX_LOCATION)
 	err = cmdDelLastLine.Run()
 	if err != nil {
@@ -302,7 +300,6 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 		os.Exit(1)
 	}
 
-	nginxMutex.Unlock()
 	nginxRestart := exec.Command("nginx", "-s", "reload")
 	nginxRestart.Run()
 	fmt.Println("Nginx configuration has been successfully updated.")
