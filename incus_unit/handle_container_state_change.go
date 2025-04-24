@@ -11,7 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+    "os"
 
+	"github.com/lxc/incus/shared/api"
+	client "github.com/lxc/incus/client"
 	db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -26,11 +29,27 @@ func ChangeStateHandler(state string) http.HandlerFunc {
 		}
 
 		Tag := strings.Trim(string(tagBytes), "\"")
-		log.Printf("%s: Received request to stop container with tag '%s'.", state, Tag)
+		log.Printf("%s: Received request with tag '%s'.", state, Tag)
 		info := StateChangeTarget{
 			Tag:    Tag,
 			Status: state,
 		}
+
+        command := []string{"/usr/bin/manage_ssh"}
+        execArgs := api.InstanceExecPost{
+        	Command: command,
+        	User:    0,
+        	Group:   0,
+        }
+       
+        ioDescriptor := client.InstanceExecArgs{
+        	Stdin:  os.Stdin,
+        	Stdout: os.Stdout,
+        	Stderr: os.Stderr,
+        }
+        op, _ := IncusCli.ExecInstance(Tag, execArgs, &ioDescriptor)
+        op.Wait()
+
 
 		select {
 		case WorkQueue.StateTasks <- info:
