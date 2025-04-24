@@ -35,21 +35,23 @@ func ChangeStateHandler(state string) http.HandlerFunc {
 			Status: state,
 		}
 
-        command := []string{"/usr/bin/manage_ssh"}
-        execArgs := api.InstanceExecPost{
-        	Command: command,
-        	User:    0,
-        	Group:   0,
-        }
+        if state == "start" || state == "restart" || state == "unfreeze" {
+                command := []string{"/usr/bin/manage_ssh"}
+            execArgs := api.InstanceExecPost{
+            	Command: command,
+            	User:    0,
+            	Group:   0,
+            }
        
-        ioDescriptor := client.InstanceExecArgs{
-        	Stdin:  os.Stdin,
-        	Stdout: os.Stdout,
-        	Stderr: os.Stderr,
-        }
-        op, _ := IncusCli.ExecInstance(Tag, execArgs, &ioDescriptor)
-        op.Wait()
+          ioDescriptor := client.InstanceExecArgs{
+          	Stdin:  os.Stdin,
+          	Stdout: os.Stdout,
+          	Stderr: os.Stderr,
+          }
+          op, _ := IncusCli.ExecInstance(Tag, execArgs, &ioDescriptor)
+          op.Wait()
 
+        }
 
 		select {
 		case WorkQueue.StateTasks <- info:
