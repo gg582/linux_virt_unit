@@ -3,6 +3,9 @@ package incus_unit
 // Task pool for container creation.
 import (
 	"github.com/yoonjin67/linux_virt_unit"
+	"github.com/lxc/incus/shared/api"
+	client "github.com/lxc/incus/client"
+    "os"
 	"log"
 	"sync"
 )
@@ -69,11 +72,30 @@ func (q *ContainerQueue) StateChangeWorker() {
 	for target := range q.StateTasks {
         if target.Status == "delete" {
             DeleteContainerByName(target.Tag)
+        } else {
+            err := ChangeState(target.Tag, target.Status)
+            if err != nil {
+                log.Printf("Status change failed on task %s, err: %v\n", target.Status, err)
+                if target.Status == "start" || target.Status == "restart" || target.Status == "unfreeze" {
+                    command := []string{"/usr/bin/manage_ssh"}
+                    execArgs := api.InstanceExecPost{
+                    	Command: command,
+                    	User:    0,
+                    	Group:   0,
+                    }
+       
+                    ioDescriptor := client.InstanceExecArgs{
+                    	Stdin:  os.Stdin,
+                    	Stdout: os.Stdout,
+                    	Stderr: os.Stderr,
+                    }
+                    op, _ := IncusCli.ExecInstance(target.Tag, execArgs, &ioDescriptor)
+                    op.Wait()
+
+                }
+            }
         }
-        err := ChangeState(target.Tag, target.Status)
-        if err != nil {
-            log.Printf("Status change failed on task %s, err: %v\n", target.Status, err)
-        }
+
 	}
 	log.Println("worker: Worker goroutine finished.")
 
