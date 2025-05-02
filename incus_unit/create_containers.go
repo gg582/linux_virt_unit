@@ -182,6 +182,7 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 
 	// Allocate a unique port for the container
     nginxMutex.Lock()
+    defer nginxMutex.Unlock()
 	allocatedPort, err := allocateUniquePort()
 	if err != nil {
 		log.Printf("createContainer: Failed to allocate a unique port for tag '%s': %v", tag, err)
@@ -269,7 +270,6 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
             `, allocatedPort, currentContainerIPv6, allocatedPort+1, currentContainerIPv6, allocatedPort+2, currentContainerIPv6)
 
 			nginxConfig += "\n" + nginxConfigIPv6
-            nginxMutex.Unlock()
 			break
 		} else {
 			time.Sleep(1 * time.Second)
