@@ -49,27 +49,28 @@ func ChangeStateHandler(state string) http.HandlerFunc {
 }
 
 // DeleteContainerByName stops and then deletes an Incus container by its tag.
-func DeleteContainerByName(tag string) error {
+func DeleteContainerByName(tag string) {
 	log.Printf("DeleteContainerByName: Attempting to delete Incus container with tag '%s'.", tag)
 	// Check if the tag is nil
 	if tag == "" {
 		log.Println("DeleteContainerByName: Error: tag is nil")
-		return errors.New("tag is nil")
+		WQReturns <- errors.New("tag is nil")
 	}
 	// Get the container information
 	container, _, err := IncusCli.GetInstance(tag)
 	if err != nil {
-		return fmt.Errorf("DeleteContainerByName: failed to get container '%s': %w", tag, err)
+		WQReturns <- fmt.Errorf("DeleteContainerByName: failed to get container '%s': %w", tag, err)
 	}
 	log.Printf("DeleteContainerByName: Current status of container '%s': %s.", tag, container.Status)
 
 	// If the container is running, stop it
 	if container.Status != "Stopped" {
 		log.Printf("DeleteContainerByName: Container '%s' is running, requesting stop.", tag)
-		err := ChangeState(tag, "stop")
+		ChangeState(tag, "stop")
+        err := <- WQReturns
 		if err != nil {
 			log.Printf("DeleteContainerByName: ChangeState call failed for tag '%s': %v", tag, err)
-			return err
+			WQReturns <- err
 		}
 
 		// Wait for the container to stop (with a timeout)
@@ -82,12 +83,12 @@ func DeleteContainerByName(tag string) error {
 				if err != nil {
 					log.Printf("DeleteContainerByName: Failed to get container '%s' information while waiting for stop: %v", tag, err)
 					stopChan <- true // Consider stopped if info cannot be retrieved
-					return
+                    WQReturns <- error(nil)
 				}
 				if currentContainer.Status == "Stopped" {
 					log.Printf("DeleteContainerByName: Container '%s' is now Stopped.", tag)
 					stopChan <- true
-					return
+                    WQReturns <- error(nil)
 				}
 				log.Printf("DeleteContainerByName: Container '%s' status: %s, waiting...", tag, currentContainer.Status)
 			}
@@ -97,7 +98,7 @@ func DeleteContainerByName(tag string) error {
 		case <-stopChan:
 			log.Printf("DeleteContainerByName: Container '%s' stop confirmed, proceeding with deletion.", tag)
 		case <-time.After(30 * time.Second): // Set a timeout to prevent indefinite waiting
-			return fmt.Errorf("DeleteContainerByName: container '%s' did not stop in time", tag)
+			WQReturns <- fmt.Errorf("DeleteContainerByName: container '%s' did not stop in time", tag)
 		}
 	} else {
 		log.Printf("DeleteContainerByName: Container '%s' is already Stopped.", tag)
@@ -106,16 +107,16 @@ func DeleteContainerByName(tag string) error {
 	// Delete the container
 	op, err := IncusCli.DeleteInstance(tag)
 	if err != nil {
-		return fmt.Errorf("DeleteContainerByName: failed to delete container '%s': %w", tag, err)
+		WQReturns <- fmt.Errorf("DeleteContainerByName: failed to delete container '%s': %w", tag, err)
 	}
 	log.Printf("DeleteContainerByName: Delete request sent for container '%s'.", tag)
 
 	err = op.Wait()
 	if err != nil {
-		return fmt.Errorf("DeleteContainerByName: error waiting for deletion of container '%s': %w", tag, err)
+		WQReturns <- fmt.Errorf("DeleteContainerByName: error waiting for deletion of container '%s': %w", tag, err)
 	}
 	log.Printf("DeleteContainerByName: Container '%s' deleted successfully.", tag)
-	return nil
+	WQReturns <- nil
 }
 
 func DeleteNginxConfig(port int) error {
@@ -157,6 +158,8 @@ N; /proxy_pass .*:%s;/ d;
 // @Failure 400
 // @Router /delete [post]
 func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	portDeleteMutex.Lock()
 	defer portDeleteMutex.Unlock()
 	log.Println("DeleteByTag: Start.")
@@ -169,13 +172,13 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
 	Tag := strings.Trim(string(tagBytes), "\"")
 	log.Printf("DeleteByTag: Received request to delete container with tag '%s'.", Tag)
 
-	cur, err := db.ContainerInfoCollection.Find(context.Background(), bson.D{{Key: "TAG", Value: Tag}})
+	cur, err := db.ContainerInfoCollection.Find(ctx, bson.D{{Key: "TAG", Value: Tag}})
 	if err != nil {
 		log.Printf("DeleteByTag: MongoDB Find failed: %v", err)
 		http.Error(wr, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer cur.Close(context.Background())
+	defer cur.Close(ctx)
 	log.Println("DeleteByTag: MongoDB Find completed.")
 
 	found, foundTag := db.FindTag(Tag)
@@ -195,7 +198,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
 		PORT_LIST = DeleteFromListByValue(PORT_LIST, port)
 
 		filter := bson.D{{"tag", Tag}}
-		_, err = db.ContainerInfoCollection.DeleteOne(context.Background(), filter)
+		_, err = db.ContainerInfoCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			log.Printf("DeleteByTag: MongoDB DeleteOne failed: %v", err)
 		} else {

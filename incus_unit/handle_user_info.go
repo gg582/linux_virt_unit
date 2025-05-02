@@ -22,11 +22,8 @@ import (
 )
 
 // CheckUserExists checks if a user exists in the database.
-func CheckUserExists(username string, password string) bool {
+func CheckUserExists(username string, password string, ctx context.Context) bool {
 	const maxWait = time.Second
-
-	ctx, cancel := context.WithTimeout(context.Background(), maxWait)
-	defer cancel()
 
 	cursor, err := db.UserInfoCollection.Find(ctx, bson.D{})
 	if err != nil {
@@ -96,7 +93,7 @@ func Register(wr http.ResponseWriter, req *http.Request) {
 	}
 
 	// Check if the username already exists
-	if CheckUserExists(username, u.Password) {
+	if CheckUserExists(username, u.Password, ctx) {
 		log.Printf("Register: Username '%s' already exists", username)
 		http.Error(wr, "User already exists", http.StatusConflict)
 		return

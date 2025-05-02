@@ -37,8 +37,6 @@ var buf bytes.Buffer
 
 const INITIAL_PORT = 27020
 
-var ctx context.Context
-var cancel context.CancelFunc
 var ADDR string = "http://hobbies.yoonjin2.kr"
 
 // Mutex to manage port allocation.
@@ -130,6 +128,8 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
 
 func createContainer(info linux_virt_unit.ContainerInfo) {
 	// Decrypt username and password
+    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+    defer cancel()
 	username, err := linux_virt_unit_crypto.DecryptString(info.Username, info.Key, info.UsernameIV)
 	if err != nil {
 		log.Printf("createContainer: Error decrypting username: %v", err)
@@ -144,7 +144,7 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	// Check if user exists
 	log.Printf("createContainer: Decrypted Username: '%s'", username)
 	log.Printf("createContainer: Decrypted Password: '%s'", password)
-	if !CheckUserExists(username, password) {
+	if !CheckUserExists(username, password, ctx) {
 		log.Printf("createContainer: User '%s' does not exist.", username)
 		return
 	}
@@ -304,10 +304,11 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	nginxRestart.Run()
 	fmt.Println("Nginx configuration has been successfully updated.")
 
-    _, insertErr := db.ContainerInfoCollection.InsertOne(context.Background(), info)
+    _, insertErr := db.ContainerInfoCollection.InsertOne(ctx, info)
     if insertErr != nil {
     	log.Printf("createContainer: Cannot insert container info into MongoDB for tag '%s': %v", tag, insertErr)
-    	err = DeleteContainerByName(tag)
+    	go DeleteContainerByName(tag)
+        err := <- WQReturns
     	if err != nil {
     		log.Printf("createContainer: Failed to delete potentially failed Incus container '%s': %v", tag, err)
     	} else {

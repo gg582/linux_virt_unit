@@ -10,6 +10,8 @@ import (
 	"sync"
 )
 
+var WQReturns chan error
+
 type StateChangeTarget struct {
 	Tag    string
 	Status string
@@ -25,6 +27,7 @@ var WorkQueue *ContainerQueue
 
 // InitWorkQueue initializes the container work queue.
 func InitWorkQueue() {
+    WQReturns = make(chan error, 1024)
 	WorkQueue = &ContainerQueue{
 		Tasks:      make(chan linux_virt_unit.ContainerInfo, 1024),
 		wg:         sync.WaitGroup{},
@@ -71,9 +74,12 @@ func (q *ContainerQueue) StateChangeWorker() {
 	log.Println("worker: Worker goroutine started.")
 	for target := range q.StateTasks {
         if target.Status == "delete" {
-            DeleteContainerByName(target.Tag)
+            go DeleteContainerByName(target.Tag)
         } else {
-            err := ChangeState(target.Tag, target.Status)
+            go ChangeState(target.Tag, target.Status)
+        }
+        for len(WQReturns) != 0 {
+            err := <- WQReturns
             if err != nil {
                 log.Printf("Status change failed on task %s, err: %v\n", target.Status, err)
                 if target.Status == "start" || target.Status == "restart" || target.Status == "unfreeze" {
@@ -95,7 +101,6 @@ func (q *ContainerQueue) StateChangeWorker() {
                 }
             }
         }
-
 	}
 	log.Println("worker: Worker goroutine finished.")
 
