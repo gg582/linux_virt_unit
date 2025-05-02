@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"sync"
 	"time"
@@ -20,7 +19,6 @@ import (
 	db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
 )
 
-const NGINX_LOCATION = "/etc/nginx/nginx.conf"
 const MAX_PORT = 60001
 
 var IncusCli client.InstanceServer
@@ -188,96 +186,22 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 		log.Printf("createContainer: Failed to allocate a unique port for tag '%s': %v", tag, err)
 		return
 	}
-
 	port := strconv.Itoa(allocatedPort)
 	info.Serverport = port
+    target := PortTagTarget {
+        tag: tag,
+        port: allocatedPort,
+    }
+
+    WorkQueue.RetrieveTag <- target
+
 	// LOCK THE MUTEX HERE
 	// Port should not be duplicated
 	
 	log.Printf("createContainer: Allocated new port '%d' for tag '%s'.", allocatedPort, tag)
 	log.Printf("createContainer: Attempting to create container with tag '%s', port '%s', user '%s' password '%s'.", tag, port, username, password)
 
-	cmdDelLastLine := exec.Command("bash", "-c", `tac "$0" | sed '0,/}/ s/}//' | tac > /tmp/temp.txt`, NGINX_LOCATION)
-	err = cmdDelLastLine.Run()
-	if err != nil {
-		log.Printf("createContainer: (nginx) Cannot delete last line of nginx config. %v", err)
-	}
-	cmdCopyNginx := exec.Command("mv", "/tmp/temp.txt", NGINX_LOCATION)
-	err = cmdCopyNginx.Run()
-	if err != nil {
-		log.Println("createContainer: (nginx) Cannot copy file to nginx config")
-	}
-	var currentContainerIP, currentContainerIPv6 string
-	var nginxConfigFile *os.File
-	nginxConfigFile, err = os.OpenFile(NGINX_LOCATION, os.O_APPEND|os.O_RDWR, 0644)
-	if err != nil {
-		log.Println("createContainer: (nginx) Error opening nginx.conf file: ", err)
-	}
-	nginxConfig := "}"
-	//Waits for 10 seconds
-	for repeat := 0; repeat < 10; repeat++ {
-		containerInfo, _, err := IncusCli.GetInstanceState(tag)
-		if err != nil {
-			log.Printf("createContainer: Container Check failed: %v\n", err)
-		}
-		log.Printf("createContainer: Container creation script finished for tag '%s'.", tag)
-
-		for _, network := range containerInfo.Network {
-			if network.Type == "broadcast" {
-				for _, addr := range network.Addresses {
-					if addr.Family == "inet" {
-						currentContainerIP = addr.Address
-					} else if addr.Family == "inet6" {
-						currentContainerIPv6 = addr.Address
-					}
-					//find ipv4 and ipv6
-				}
-			}
-		}
-		if currentContainerIPv6 != "" && currentContainerIP != "" {
-			nginxConfig = fmt.Sprintf(`
-    server {
-        listen 0.0.0.0:%d;
-        proxy_pass %s:22;
-    }
-    server {
-        listen 0.0.0.0:%d;
-        proxy_pass %s:30001;
-    }
-    server {
-        listen 0.0.0.0:%d;
-        proxy_pass %s:30002;
-    }
-            `, allocatedPort, currentContainerIP, allocatedPort+1, currentContainerIP, allocatedPort+2, currentContainerIP)
-
-			if err != nil {
-				log.Println("createContainer: (nginx) Error writing to nginx.conf: ", err)
-			}
-			nginxConfigIPv6 := fmt.Sprintf(`
-    server {
-        listen [::]:%d;
-        proxy_pass [%s]:22;
-    }
-    server {
-        listen [::]:%d;
-        proxy_pass [%s]:30001;
-    }
-    server {
-        listen [::]:%d;
-        proxy_pass [%s]:30002;
-    }
-}
-            `, allocatedPort, currentContainerIPv6, allocatedPort+1, currentContainerIPv6, allocatedPort+2, currentContainerIPv6)
-
-			nginxConfig += "\n" + nginxConfigIPv6
-			break
-		} else {
-			time.Sleep(1 * time.Second)
-			log.Println("createContainer: Waiting for IP response...")
-		}
-	}
-	_, err = fmt.Fprintln(nginxConfigFile, nginxConfig)
-	defer nginxConfigFile.Close()
+	fmt.Println("Nginx configuration has been successfully updated.")
 	command := []string{"/bin/bash", "/conSSH.sh", username, password, tag}
 	execArgs := api.InstanceExecPost{
 		Command: command,
@@ -302,15 +226,13 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 		os.Exit(1)
 	}
 
-	nginxRestart := exec.Command("nginx", "-s", "reload")
-	nginxRestart.Run()
-	fmt.Println("Nginx configuration has been successfully updated.")
+
 
     _, insertErr := db.ContainerInfoCollection.InsertOne(ctx, info)
     if insertErr != nil {
     	log.Printf("createContainer: Cannot insert container info into MongoDB for tag '%s': %v", tag, insertErr)
     	go DeleteContainerByName(tag)
-        err := <- WQReturns
+        err := <- WorkQueue.WQReturns
     	if err != nil {
     		log.Printf("createContainer: Failed to delete potentially failed Incus container '%s': %v", tag, err)
     	} else {

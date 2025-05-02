@@ -7,8 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
@@ -54,12 +52,12 @@ func DeleteContainerByName(tag string) {
 	// Check if the tag is nil
 	if tag == "" {
 		log.Println("DeleteContainerByName: Error: tag is nil")
-		WQReturns <- errors.New("tag is nil")
+		WorkQueue.WQReturns <- errors.New("tag is nil")
 	}
 	// Get the container information
 	container, _, err := IncusCli.GetInstance(tag)
 	if err != nil {
-		WQReturns <- fmt.Errorf("DeleteContainerByName: failed to get container '%s': %w", tag, err)
+		WorkQueue.WQReturns <- fmt.Errorf("DeleteContainerByName: failed to get container '%s': %w", tag, err)
 	}
 	log.Printf("DeleteContainerByName: Current status of container '%s': %s.", tag, container.Status)
 
@@ -67,10 +65,10 @@ func DeleteContainerByName(tag string) {
 	if container.Status != "Stopped" {
 		log.Printf("DeleteContainerByName: Container '%s' is running, requesting stop.", tag)
 		ChangeState(tag, "stop")
-        err := <- WQReturns
+        err := <- WorkQueue.WQReturns
 		if err != nil {
 			log.Printf("DeleteContainerByName: ChangeState call failed for tag '%s': %v", tag, err)
-			WQReturns <- err
+			WorkQueue.WQReturns <- err
 		}
 
 		// Wait for the container to stop (with a timeout)
@@ -83,12 +81,12 @@ func DeleteContainerByName(tag string) {
 				if err != nil {
 					log.Printf("DeleteContainerByName: Failed to get container '%s' information while waiting for stop: %v", tag, err)
 					stopChan <- true // Consider stopped if info cannot be retrieved
-                    WQReturns <- error(nil)
+                    WorkQueue.WQReturns <- error(nil)
 				}
 				if currentContainer.Status == "Stopped" {
 					log.Printf("DeleteContainerByName: Container '%s' is now Stopped.", tag)
 					stopChan <- true
-                    WQReturns <- error(nil)
+                    WorkQueue.WQReturns <- error(nil)
 				}
 				log.Printf("DeleteContainerByName: Container '%s' status: %s, waiting...", tag, currentContainer.Status)
 			}
@@ -98,7 +96,7 @@ func DeleteContainerByName(tag string) {
 		case <-stopChan:
 			log.Printf("DeleteContainerByName: Container '%s' stop confirmed, proceeding with deletion.", tag)
 		case <-time.After(30 * time.Second): // Set a timeout to prevent indefinite waiting
-			WQReturns <- fmt.Errorf("DeleteContainerByName: container '%s' did not stop in time", tag)
+			WorkQueue.WQReturns <- fmt.Errorf("DeleteContainerByName: container '%s' did not stop in time", tag)
 		}
 	} else {
 		log.Printf("DeleteContainerByName: Container '%s' is already Stopped.", tag)
@@ -107,46 +105,19 @@ func DeleteContainerByName(tag string) {
 	// Delete the container
 	op, err := IncusCli.DeleteInstance(tag)
 	if err != nil {
-		WQReturns <- fmt.Errorf("DeleteContainerByName: failed to delete container '%s': %w", tag, err)
+		WorkQueue.WQReturns <- fmt.Errorf("DeleteContainerByName: failed to delete container '%s': %w", tag, err)
 	}
 	log.Printf("DeleteContainerByName: Delete request sent for container '%s'.", tag)
 
 	err = op.Wait()
 	if err != nil {
-		WQReturns <- fmt.Errorf("DeleteContainerByName: error waiting for deletion of container '%s': %w", tag, err)
+		WorkQueue.WQReturns <- fmt.Errorf("DeleteContainerByName: error waiting for deletion of container '%s': %w", tag, err)
 	}
 	log.Printf("DeleteContainerByName: Container '%s' deleted successfully.", tag)
-	WQReturns <- nil
+	WorkQueue.WQReturns <- nil
 }
 
-func DeleteNginxConfig(port int) error {
-	nginxConfPath := NGINX_LOCATION
-	portStr := strconv.Itoa(port)
-	portPlusOneStr := strconv.Itoa(port + 1)
-	portPlusTwoStr := strconv.Itoa(port + 2)
 
-	// Construct the sed command to delete the three server blocks related to the port.
-	sedCommand := fmt.Sprintf(`sed -i '/listen 0.0.0.0:%s;/ {
-N; /proxy_pass .*:%s;/ d;
-N; /listen 0.0.0.0:%s;/ {
-N; /proxy_pass .*:%s;/ d;
-N; /listen 0.0.0.0:%s;/ {
-N; /proxy_pass .*:%s;/ d;
-}; }; };' %s`,
-		portStr, "22",
-		portPlusOneStr, "30001",
-		portPlusTwoStr, "30002",
-		nginxConfPath)
-
-	cmd := exec.Command("bash", "-c", sedCommand)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("DeleteNginxConfig: Failed to execute sed command: %v, output: %s", err, string(output))
-		return fmt.Errorf("failed to delete nginx config: %v, output: %s", err, string(output))
-	}
-	log.Printf("DeleteNginxConfig: Successfully executed sed command. Output: %s", string(output))
-	return nil
-}
 
 // DeleteByTag godoc
 // @Summary Delete container by tag
@@ -192,11 +163,6 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
 		}
 		log.Printf("DeleteByTag: Port to return: %d", port)
 
-		if DeleteNginxConfig(port) != nil {
-			log.Println("DeleteByTag: (nginx) eNginx policy modification failed")
-		}
-		PORT_LIST = DeleteFromListByValue(PORT_LIST, port)
-
 		filter := bson.D{{"tag", Tag}}
 		_, err = db.ContainerInfoCollection.DeleteOne(ctx, filter)
 		if err != nil {
@@ -205,11 +171,11 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
 			log.Println("DeleteByTag: MongoDB DeleteOne Success.")
 		}
 
-		log.Println("DeleteByTag: Calling DeleteContainerByName.")
         info := StateChangeTarget {
             Tag: Tag,
             Status: "delete",
         }
+        WorkQueue.DeletionQueue <- port
 		select {
 		case WorkQueue.StateTasks <- info:
 			log.Println("CreateContainer: Added container creation task to the work queue.")
@@ -224,14 +190,3 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
     }
 }
 
-// DeleteFromListByValue removes a specific value from an integer slice.
-func DeleteFromListByValue(slice []int, value int) []int {
-	for i, itm := range slice {
-		if itm == value {
-			log.Printf("DeleteFromListByValue: Found value '%d' at index '%d', removing.", value, i)
-			return append(slice[:i], slice[i+1:]...)
-		}
-	}
-	log.Printf("DeleteFromListByValue: Value '%d' not found in the slice.", value)
-	return slice
-}
