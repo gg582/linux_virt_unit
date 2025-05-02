@@ -41,6 +41,7 @@ var ADDR string = "http://hobbies.yoonjin2.kr"
 
 // Mutex to manage port allocation.
 var containerManageMutex sync.Mutex
+var nginxMutex sync.Mutex
 var portDeleteMutex sync.Mutex
 
 // TouchFile creates an empty file if it doesn't exist.
@@ -155,23 +156,6 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	info.TAG = tag
 	log.Printf("createContainer: Generated tag '%s' for user '%s'.", tag, username)
 
-	// Allocate a unique port for the container
-	containerManageMutex.Lock()
-    defer containerManageMutex.Unlock()
-	allocatedPort, err := allocateUniquePort()
-	if err != nil {
-		log.Printf("createContainer: Failed to allocate a unique port for tag '%s': %v", tag, err)
-		return
-	}
-
-	port := strconv.Itoa(allocatedPort)
-	info.Serverport = port
-	// LOCK THE MUTEX HERE
-	// Port should not be duplicated
-	
-	log.Printf("createContainer: Allocated new port '%d' for tag '%s'.", allocatedPort, tag)
-	log.Printf("createContainer: Attempting to create container with tag '%s', port '%s', user '%s' password '%s'.", tag, port, username, password)
-
 	// Set a timeout for container creation
 
 	containerConfig := api.InstancesPost{
@@ -195,6 +179,23 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	}
 
 	ChangeState(tag, "start")
+
+	// Allocate a unique port for the container
+    nginxMutex.Lock()
+	allocatedPort, err := allocateUniquePort()
+	if err != nil {
+		log.Printf("createContainer: Failed to allocate a unique port for tag '%s': %v", tag, err)
+		return
+	}
+
+	port := strconv.Itoa(allocatedPort)
+	info.Serverport = port
+	// LOCK THE MUTEX HERE
+	// Port should not be duplicated
+	
+	log.Printf("createContainer: Allocated new port '%d' for tag '%s'.", allocatedPort, tag)
+	log.Printf("createContainer: Attempting to create container with tag '%s', port '%s', user '%s' password '%s'.", tag, port, username, password)
+
 	cmdDelLastLine := exec.Command("bash", "-c", `tac "$0" | sed '0,/}/ s/}//' | tac > /tmp/temp.txt`, NGINX_LOCATION)
 	err = cmdDelLastLine.Run()
 	if err != nil {
@@ -268,6 +269,7 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
             `, allocatedPort, currentContainerIPv6, allocatedPort+1, currentContainerIPv6, allocatedPort+2, currentContainerIPv6)
 
 			nginxConfig += "\n" + nginxConfigIPv6
+            nginxMutex.Unlock()
 			break
 		} else {
 			time.Sleep(1 * time.Second)
