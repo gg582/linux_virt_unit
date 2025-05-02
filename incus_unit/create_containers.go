@@ -277,7 +277,7 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 		}
 	}
 	_, err = fmt.Fprintln(nginxConfigFile, nginxConfig)
-	nginxConfigFile.Close()
+	defer nginxConfigFile.Close()
 	command := []string{"/bin/bash", "/conSSH.sh", username, password, tag}
 	execArgs := api.InstanceExecPost{
 		Command: command,
