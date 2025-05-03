@@ -1,62 +1,56 @@
-# 🐧 linux\_virt\_unit
 
-`linux_virt_unit` is a Go module for controlling Incus (LXD alternative) containers. It provides backend logic for creating, deleting, and managing containers via REST API, including secure user authentication, port allocation, and state control.
+# linux\_virt\_unit
 
-This module is part of the **LVirt Project**, designed for lightweight, secure virtualization management with TLS-secured API access.
+## Purpose
 
----
+`linux\_virt\_unit` is a Go module designed to control Incus (LXD alternative) containers. It provides backend logic for creating, deleting, and managing containers via a REST API, including secure user authentication, port allocation, and state control. This module is part of the LVirt Project, designed for lightweight and secure virtualization management with TLS-secured API access.
 
-## 📦 Features
+## Features
 
-| Feature                      | Description |
-|-----------------------------|-------------|
-| Container Creation          | Creates a new container using encrypted user credentials and distro/version info |
-| Container Deletion          | Deletes container(s) by tag or associated username |
-| Container State Management  | Start, stop, pause, resume, and restart containers dynamically |
-| User Authentication         | AES-encrypted credentials and bcrypt password verification |
-| Port Pooling                | Random port allocation and release using a mutex-protected heap |
-| Asynchronous Task Handling  | Goroutine-based worker pool for responsive and parallel container operations |
+| Feature                         | Description                                                                                   |
+|---------------------------------|-----------------------------------------------------------------------------------------------|
+| **Container Creation**          | Creates a new container using encrypted user credentials and distro/version info. *(POST /create)*  |
+| **Container Deletion**          | Deletes container(s) by tag or associated username. *(POST /delete)*                          |
+| **Container State Management**  | Dynamically start, stop, pause, resume, and restart containers. *(POST /start, /stop, /pause, /resume, /restart)* |
+| **User Authentication**         | AES-encrypted credentials and bcrypt password verification. *(POST /authenticate)*            |
+| **Port Pooling**                | Sequential port allocation and release using a mutex-protected heap. *(GET /port-pool)*       |
+| **Asynchronous Task Handling**  | Goroutine-based worker pool for responsive and parallel container operations. *(POST /tasks)* |
 
----
-
-## 📁 Structure
+## Structure
 
 ```
-linux_virt_unit/
+linux\_virt\_unit/
 ├── crypto
-│   └── crypto.go #encryption logics
+│   └── crypto.go                  # Encryption logic
 ├── go.mod
 ├── go.sum
-├── http_request
-│   └── http_request.go #RestAPI endpoints
-├── incus_unit
-│   ├── base_images.go #(auto-generated) base image fingerprints
-│   ├── change_container_status.go # 
-│   ├── create_containers.go 
-│   ├── get_info.go # get miscellaneous informations
-│   ├── handle_container_state_change.go # Start/Stop/Pause/Resume/Restart logic
-│   ├── handle_user_info.go # Secure user registration and verification
-│   └── worker_pool.go # multi-processing worker pool
-├── linux_virt_unit.go # shared structure definitions
-├── mongo_connect
-│   └── mongo_connect.go # mongoDB client connection establishment
+├── http\_request
+│   └── http\_request.go            # RestAPI endpoints
+├── incus\_unit
+│   ├── base\_images.go             # Auto-generated base image fingerprints
+│   ├── change\_container\_status.go # Logic for changing container status
+│   ├── create\_containers.go       # Logic for creating containers
+│   ├── get\_info.go                # Fetches miscellaneous information
+│   ├── handle\_container\_state\_change.go # Logic for start/stop/pause/resume/restart
+│   ├── handle\_user\_info.go        # User registration and verification
+│   └── worker\_pool.go             # Multi-processing worker pool
+├── linux\_virt\_unit.go            # Shared structure definitions
+├── mongo\_connect
+│   └── mongo\_connect.go          # MongoDB client connection setup
 └── README.md
-
 ```
 
----
+## Swagger Request Example
 
-## 🧪 Swagger Request Example
+**POST /create**  
+**Content-Type:** `application/json`
 
 ```json
-POST /create
-Content-Type: application/json
-
 {
   "username": "user123",
-  "username_iv": "ivValue1",
+  "username\_iv": "ivValue1",
   "password": "encryptedPassword",
-  "password_iv": "ivValue2",
+  "password\_iv": "ivValue2",
   "key": "aesEncryptionKey",
   "tag": "ubuntu20",
   "serverip": "10.72.1.100",
@@ -67,37 +61,29 @@ Content-Type: application/json
 }
 ```
 
----
-
-## 🔐 Security
+## Security
 
 - AES-256-GCM encryption for credentials
-- Bcrypt hashing for password comparison
+- bcrypt hashing for password comparison
 - TLS-enabled REST API server
 - Port-per-container network allocation
 
----
-
-## 🧩 Architecture
+## Architecture
 
 ```
-[Client (KivyMD)] ⇄ [REST API (Go)] ⇄ [linux_virt_unit] ⇄ [Incus API]
+[Client (KivyMD)] ⇄ [REST API (Go)] ⇄ [linux\_virt\_unit] ⇄ [Incus API]
                                        ⇅
                                    [MongoDB]
 ```
 
----
-
-## ⚙️ Requirements
+## Requirements
 
 - Go 1.23 or higher
 - Incus installed (NOT LXD)
 - MongoDB 6.0
 - Ubuntu host with container support
 
----
-
-## 📜 License
+## License
 
 MIT License
 
