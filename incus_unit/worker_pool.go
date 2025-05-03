@@ -4,12 +4,12 @@ package incus_unit
 import (
 	"fmt"
 	client "github.com/lxc/incus/client"
+    linux_virt_unit_crypto "github.com/yoonjin67/linux_virt_unit/crypto"
 	"github.com/lxc/incus/shared/api"
 	"github.com/yoonjin67/linux_virt_unit"
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -20,6 +20,7 @@ type PortTagTarget struct {
 	tag  string
 }
 
+var nginxMutex sync.Mutex
 
 var NGINX_LOCATION = "/etc/nginx.conf"
 
@@ -170,46 +171,61 @@ func (q *ContainerQueue) ContainerCreationWorker() {
 	for info := range q.Tasks {
 		log.Println("worker: Received container creation task.")
 		createContainer(info)
+        for i := 0; i < 1000; i++ {
+            instance, _, err := IncusCli.GetInstance(info.TAG)
+    	    if err != nil || instance.Status != "Running" {
+    	    	fmt.Fprintf(os.Stderr, "Waiting for container bootup: %v\n", err)
+                time.Sleep(time.Second / 10)
+                continue
+    	    }
+        	username, err := linux_virt_unit_crypto.DecryptString(info.Username, info.Key, info.UsernameIV)
+        	if err != nil {
+        		log.Printf("createContainer: Error decrypting username: %v", err)
+        		return
+        	}
+        	password, err := linux_virt_unit_crypto.DecryptString(info.Password, info.Key, info.PasswordIV)
+        	if err != nil {
+        		log.Printf("createContainer: Error decrypting password: %v", err)
+        		return
+        	}
+
+            log.Println("Trying to setup ssh...")
+    	    command := []string{"/bin/bash", "/conSSH.sh", username, password, info.TAG}
+    	    execArgs := api.InstanceExecPost{
+    	    	Command: command,
+    	    	User:    0,
+    	    	Group:   0,
+    	    }
+    
+    	    ioDescriptor := client.InstanceExecArgs{
+    	    	Stdin:  os.Stdin,
+    	    	Stdout: os.Stdout,
+    	    	Stderr: os.Stderr,
+    	    }
+
+            op, err := IncusCli.ExecInstance(info.TAG, execArgs, &ioDescriptor)
+    	    err = op.Wait()
+    	    if err != nil {
+    	    	log.Printf("createContainer: (ssh) Failed to get SSH setup result: %v\n", err)
+                break
+    	    } else {
+                log.Println("Successfully get SSH setup result: ok")
+                break
+            }
+        }
 		log.Println("worker: Container creation task completed. Sending Nginx sync request.")
 	}
 }
 
 func (q *ContainerQueue) StateChangeWorker() {
 	defer q.wg.Done()
-	log.Println("worker: Worker goroutine started.")
 	for target := range q.StateTasks {
 		if target.Status == "delete" {
 			go DeleteContainerByName(target.Tag)
+
 		} else {
 			go ChangeState(target.Tag, target.Status)
 		}
-		for len(WorkQueue.WQReturns) != 0 {
-			err := <-WorkQueue.WQReturns
-			if err != nil {
-				log.Printf("Status change failed on task %s, err: %v\n", target.Status, err)
-				if target.Status == "start" || target.Status == "restart" || target.Status == "unfreeze" {
-					command := []string{"/usr/bin/manage_ssh"}
-					execArgs := api.InstanceExecPost{
-						Command: command,
-						User:    0,
-						Group:   0,
-					}
-
-					ioDescriptor := client.InstanceExecArgs{
-						Stdin:  os.Stdin,
-						Stdout: os.Stdout,
-						Stderr: os.Stderr,
-					}
-					op, _ := IncusCli.ExecInstance(target.Tag, execArgs, &ioDescriptor)
-					op.Wait()
-				}
-			}
-		}
-	}
-
-	for len(WorkQueue.DeletionQueue) != 0 {
-		port := <- WorkQueue.DeletionQueue
-		DeleteNginxConfig(port)
 	}
 }
 
@@ -219,37 +235,12 @@ func (q *ContainerQueue) NginxSyncWorker() {
 	log.Println("NginxSyncWorker: Nginx sync worker started.")
 	for target := range WorkQueue.RetrieveTag {
 		log.Printf("NginxSyncWorker: Received Nginx sync request for tag '%s', port %d.", target.tag, target.port)
+        nginxMutex.Lock()
 		syncNginxToAdd(target.tag, target.port)
+        nginxMutex.Unlock()
 		log.Printf("NginxSyncWorker: Nginx sync completed for tag '%s', port %d.", target.tag, target.port)
 	}
 	log.Println("NginxSyncWorker: Nginx sync worker finished.")
 }
 
-func DeleteNginxConfig(port int) error {
-	nginxConfPath := NGINX_LOCATION
-	portStr := strconv.Itoa(port)
-	portPlusOneStr := strconv.Itoa(port + 1)
-	portPlusTwoStr := strconv.Itoa(port + 2)
 
-	// Construct the sed command to delete the three server blocks related to the port.
-	sedCommand := fmt.Sprintf(`sed -i '/listen 0.0.0.0:%s;/ {
-N; /proxy_pass .*:%s;/ d;
-N; /listen 0.0.0.0:%s;/ {
-N; /proxy_pass .*:%s;/ d;
-N; /listen 0.0.0.0:%s;/ {
-N; /proxy_pass .*:%s;/ d;
-}; }; };' %s`,
-		portStr, "22",
-		portPlusOneStr, "30001",
-		portPlusTwoStr, "30002",
-		nginxConfPath)
-
-	cmd := exec.Command("bash", "-c", sedCommand)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("DeleteNginxConfig: Failed to execute sed command: %v, output: %s", err, string(output))
-		return fmt.Errorf("failed to delete nginx config: %v, output: %s", err, string(output))
-	}
-	log.Printf("DeleteNginxConfig: Successfully executed sed command. Output: %s", string(output))
-	return nil
-}

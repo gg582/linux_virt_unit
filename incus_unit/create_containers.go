@@ -39,7 +39,7 @@ var ADDR string = "http://hobbies.yoonjin2.kr"
 
 // Mutex to manage port allocation.
 var containerManageMutex sync.Mutex
-var nginxMutex sync.Mutex
+var portCreatorMutex sync.Mutex
 var portDeleteMutex sync.Mutex
 
 // TouchFile creates an empty file if it doesn't exist.
@@ -110,6 +110,12 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+
+	// Generate a unique tag for the container
+	tag := getTAG(mydir, info.TAG)
+	info.TAG = tag
+	log.Printf("createContainer: Generated tag '%s'", tag)
+
 	select {
 	case WorkQueue.Tasks <- info:
 		log.Println("CreateContainer: Added container creation task to the work queue.")
@@ -127,8 +133,6 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
 
 func createContainer(info linux_virt_unit.ContainerInfo) {
 	// Decrypt username and password
-    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-    defer cancel()
 	username, err := linux_virt_unit_crypto.DecryptString(info.Username, info.Key, info.UsernameIV)
 	if err != nil {
 		log.Printf("createContainer: Error decrypting username: %v", err)
@@ -139,25 +143,20 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 		log.Printf("createContainer: Error decrypting password: %v", err)
 		return
 	}
-
+    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+    defer cancel()
 	// Check if user exists
-	log.Printf("createContainer: Decrypted Username: '%s'", username)
-	log.Printf("createContainer: Decrypted Password: '%s'", password)
 	if !CheckUserExists(username, password, ctx) {
 		log.Printf("createContainer: User '%s' does not exist.", username)
 		return
 	}
 	log.Printf("createContainer: User '%s' exists.", username)
 
-	// Generate a unique tag for the container
-	tag := getTAG(mydir, info.TAG)
-	info.TAG = tag
-	log.Printf("createContainer: Generated tag '%s' for user '%s'.", tag, username)
 
 	// Set a timeout for container creation
 
 	containerConfig := api.InstancesPost{
-		Name: tag,
+		Name: info.TAG,
 		Source: api.InstanceSource{
 			Type:        "image",
 			Fingerprint: baseImages[info.Distro],
@@ -172,24 +171,24 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	// Wait for the container to be created successfully
 	err = op.Wait()
 	if err != nil {
-		log.Printf("createContainer: Failed to wait for container creation for tag '%s': %v", tag, err)
+		log.Printf("createContainer: Failed to wait for container creation for tag '%s': %v", info.TAG, err)
 		return
 	}
 
-	ChangeState(tag, "start")
+	ChangeState(info.TAG, "start")
 
 	// Allocate a unique port for the container
-    nginxMutex.Lock()
-    defer nginxMutex.Unlock()
+    portCreatorMutex.Lock()
+    defer portCreatorMutex.Unlock()
 	allocatedPort, err := allocateUniquePort()
 	if err != nil {
-		log.Printf("createContainer: Failed to allocate a unique port for tag '%s': %v", tag, err)
+		log.Printf("createContainer: Failed to allocate a unique port for tag '%s': %v", info.TAG, err)
 		return
 	}
 	port := strconv.Itoa(allocatedPort)
 	info.Serverport = port
     target := PortTagTarget {
-        tag: tag,
+        tag: info.TAG,
         port: allocatedPort,
     }
 
@@ -198,48 +197,24 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
 	// LOCK THE MUTEX HERE
 	// Port should not be duplicated
 	
-	log.Printf("createContainer: Allocated new port '%d' for tag '%s'.", allocatedPort, tag)
-	log.Printf("createContainer: Attempting to create container with tag '%s', port '%s', user '%s' password '%s'.", tag, port, username, password)
+	log.Printf("createContainer: Allocated new port '%d' for tag '%s'.", allocatedPort, info.TAG)
+	log.Printf("createContainer: Attempting to create container with tag '%s', port '%s'", info.TAG, port)
 
 	fmt.Println("Nginx configuration has been successfully updated.")
-	command := []string{"/bin/bash", "/conSSH.sh", username, password, tag}
-	execArgs := api.InstanceExecPost{
-		Command: command,
-		User:    0,
-		Group:   0,
-	}
-
-	ioDescriptor := client.InstanceExecArgs{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}
-	op, err = IncusCli.ExecInstance(tag, execArgs, &ioDescriptor)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to setup SSH: %v\n", err)
-		os.Exit(1)
-	}
-
-	err = op.Wait()
-	if err != nil {
-		log.Printf("createContainer: (ssh) Failed to get SSH setup result: %v\n", err)
-		os.Exit(1)
-	}
-
 
 
     _, insertErr := db.ContainerInfoCollection.InsertOne(ctx, info)
     if insertErr != nil {
-    	log.Printf("createContainer: Cannot insert container info into MongoDB for tag '%s': %v", tag, insertErr)
-    	go DeleteContainerByName(tag)
+    	log.Printf("createContainer: Cannot insert container info into MongoDB for tag '%s': %v", info.TAG, insertErr)
+    	go DeleteContainerByName(info.TAG)
         err := <- WorkQueue.WQReturns
     	if err != nil {
-    		log.Printf("createContainer: Failed to delete potentially failed Incus container '%s': %v", tag, err)
+    		log.Printf("createContainer: Failed to delete potentially failed Incus container '%s': %v", info.TAG, err)
     	} else {
-    		log.Printf("createContainer: Attempted to delete Incus container '%s' after MongoDB insertion failure.", tag)
+    		log.Printf("createContainer: Attempted to delete Incus container '%s' after MongoDB insertion failure.", info.TAG)
     	}
     } else {
-    	log.Printf("createContainer: Container info inserted into MongoDB for tag '%s'.", tag)
+    	log.Printf("createContainer: Container info inserted into MongoDB for tag '%s'.", info.TAG)
     }
 
 }

@@ -89,8 +89,8 @@ func FindPortByTag(tag string) (bool, int) {
 			continue
 		}
 		if info.TAG == tag {
-			port, err := strconv.Atoi(info.TAG)
-			if err != nil {
+			port, err := strconv.Atoi(info.Serverport)
+			if err == nil {
 				return true, port
 			}
 		}

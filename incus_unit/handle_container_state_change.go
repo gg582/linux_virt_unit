@@ -8,45 +8,15 @@ import (
 	"log"
 	"net/http"
 	"strings"
+    "os/exec"
 	"time"
+    "sync"
 
 	db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func ChangeStateHandler(state string) http.HandlerFunc {
-	return func(wr http.ResponseWriter, req *http.Request) {
-		tagBytes, err := io.ReadAll(req.Body)
-		if err != nil {
-			log.Printf("%s: Failed to read request body: %v", state, err)
-			http.Error(wr, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		Tag := strings.Trim(string(tagBytes), "\"")
-		log.Printf("%s: Received request with tag '%s'.", state, Tag)
-		info := StateChangeTarget{
-			Tag:    Tag,
-			Status: state,
-		}
-
-		select {
-		case WorkQueue.StateTasks <- info:
-			log.Printf("ChangeContainer: Added container %s task to the work queue.\n", state)
-			wr.WriteHeader(http.StatusOK)
-			wr.Write([]byte(fmt.Sprintf("%s command sent for container '%s'", state, Tag)))
-			return
-		default:
-			log.Println("ChangeContainer: Work queue is full.")
-			http.Error(wr, "Server is busy", http.StatusServiceUnavailable)
-			return
-		}
-
-	}
-
-}
-
-// DeleteContainerByName stops and then deletes an Incus container by its tag.
+var nginxMutexToDelete sync.Mutex
 func DeleteContainerByName(tag string) {
 	log.Printf("DeleteContainerByName: Attempting to delete Incus container with tag '%s'.", tag)
 	// Check if the tag is nil
@@ -70,6 +40,7 @@ func DeleteContainerByName(tag string) {
 			log.Printf("DeleteContainerByName: ChangeState call failed for tag '%s': %v", tag, err)
 			WorkQueue.WQReturns <- err
 		}
+
 
 		// Wait for the container to stop (with a timeout)
 		stopChan := make(chan bool)
@@ -107,17 +78,52 @@ func DeleteContainerByName(tag string) {
 	if err != nil {
 		WorkQueue.WQReturns <- fmt.Errorf("DeleteContainerByName: failed to delete container '%s': %w", tag, err)
 	}
-	log.Printf("DeleteContainerByName: Delete request sent for container '%s'.", tag)
 
 	err = op.Wait()
 	if err != nil {
 		WorkQueue.WQReturns <- fmt.Errorf("DeleteContainerByName: error waiting for deletion of container '%s': %w", tag, err)
 	}
+	log.Printf("DeleteContainerByName: Delete request sent for container '%s'.", tag)
+
+
 	log.Printf("DeleteContainerByName: Container '%s' deleted successfully.", tag)
 	WorkQueue.WQReturns <- nil
 }
 
 
+
+
+func ChangeStateHandler(state string) http.HandlerFunc {
+	return func(wr http.ResponseWriter, req *http.Request) {
+		tagBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			log.Printf("%s: Failed to read request body: %v", state, err)
+			http.Error(wr, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		Tag := strings.Trim(string(tagBytes), "\"")
+		log.Printf("%s: Received request with tag '%s'.", state, Tag)
+		info := StateChangeTarget{
+			Tag:    Tag,
+			Status: state,
+		}
+
+		select {
+		case WorkQueue.StateTasks <- info:
+			log.Printf("ChangeContainer: Added container %s task to the work queue.\n", state)
+			wr.WriteHeader(http.StatusOK)
+			wr.Write([]byte(fmt.Sprintf("%s command sent for container '%s'", state, Tag)))
+			return
+		default:
+			log.Println("ChangeContainer: Work queue is full.")
+			http.Error(wr, "Server is busy", http.StatusServiceUnavailable)
+			return
+		}
+
+	}
+
+}
 
 // DeleteByTag godoc
 // @Summary Delete container by tag
@@ -129,10 +135,6 @@ func DeleteContainerByName(tag string) {
 // @Failure 400
 // @Router /delete [post]
 func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	portDeleteMutex.Lock()
-	defer portDeleteMutex.Unlock()
 	log.Println("DeleteByTag: Start.")
 	tagBytes, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -143,28 +145,37 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
 	Tag := strings.Trim(string(tagBytes), "\"")
 	log.Printf("DeleteByTag: Received request to delete container with tag '%s'.", Tag)
 
-	cur, err := db.ContainerInfoCollection.Find(ctx, bson.D{{Key: "TAG", Value: Tag}})
-	if err != nil {
-		log.Printf("DeleteByTag: MongoDB Find failed: %v", err)
-		http.Error(wr, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer cur.Close(ctx)
 	log.Println("DeleteByTag: MongoDB Find completed.")
 
 	found, foundTag := db.FindTag(Tag)
+    Tag = foundTag
 
 	if found {
-		found, port := db.FindPortByTag(foundTag)
-		if found == false {
-			log.Printf("DeleteByTag: Failed to convert ServerPort to integer: %v", err)
-			http.Error(wr, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-		log.Printf("DeleteByTag: Port to return: %d", port)
 
-		filter := bson.D{{"tag", Tag}}
-		_, err = db.ContainerInfoCollection.DeleteOne(ctx, filter)
+    
+    	found, port := db.FindPortByTag(Tag)
+    	if found == false {
+            log.Println("No port found on DB! Failed to delete")
+    	} else {
+            log.Println("Nginx Port Deletion triggered")
+            nginxMutexToDelete.Lock()
+            DeleteNginxConfig(port)
+        	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        	defer cancel()
+        	cur, err := db.ContainerInfoCollection.Find(ctx, bson.D{{Key: "TAG", Value: Tag}})
+        	if err != nil {
+        		log.Printf("DeleteByTag: MongoDB Find failed: %v", err)
+        		return
+        	}
+        	filter := bson.D{{"tag", Tag}}
+        	_, err = db.ContainerInfoCollection.DeleteOne(ctx, filter)
+            if err != nil {
+                log.Println("Port Deletion from MongoDB Failed!")
+            }
+            nginxMutexToDelete.Unlock()
+        	defer cur.Close(ctx)
+        }
+
 		if err != nil {
 			log.Printf("DeleteByTag: MongoDB DeleteOne failed: %v", err)
 		} else {
@@ -175,18 +186,51 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
             Tag: Tag,
             Status: "delete",
         }
-        WorkQueue.DeletionQueue <- port
 		select {
 		case WorkQueue.StateTasks <- info:
-			log.Println("CreateContainer: Added container creation task to the work queue.")
-			wr.WriteHeader(http.StatusOK)
-			wr.Write([]byte(fmt.Sprintf("%s command sent for container '%s'", "delete", Tag)))
-			return
+			 log.Println("DeleteByTag: Added container deletion task to the work queue.")
+			 wr.WriteHeader(http.StatusOK)
+			 wr.Write([]byte(fmt.Sprintf("%s command sent for container '%s'", "delete", Tag)))
 		default:
-			log.Println("CreateContainer: Work queue is full.")
+			log.Println("DeleteContainer: Work queue is full.")
 			http.Error(wr, "Server is busy", http.StatusServiceUnavailable)
 			return
 		}
     }
 }
+
+func DeleteNginxConfig(basePort int) error {
+    nginxConfPath := NGINX_LOCATION
+
+
+    awkCommand := fmt.Sprintf(`awk '
+BEGIN { skip=0 }
+/server \{/ { buf=""; skip=0 }
+/listen (0\.0\.0\.0|\[::\]):%d;/ { skip=1 }
+/listen (0\.0\.0\.0|\[::\]):%d;/ { skip=1 }
+/listen (0\.0\.0\.0|\[::\]):%d;/ { skip=1 }
+{
+    if ($0 ~ /server \{/) buf=$0
+    else if (buf != "") buf=buf"\n"$0
+    else print
+    if ($0 ~ /\}/ && skip==1) { skip=0; buf="" }
+    else if ($0 ~ /\}/ && buf != "") { print buf; buf="" }
+}
+' %s > /tmp/nginx_cleaned.conf && mv /tmp/nginx_cleaned.conf %s`,
+    basePort, basePort+1, basePort+2,
+    nginxConfPath, nginxConfPath)
+
+
+    cmd := exec.Command("bash", "-c", awkCommand)
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        log.Printf("DeleteNginxConfig: sed error: %v, output: %s", err, output)
+        return fmt.Errorf("sed failed: %v, output: %s", err, output)
+    }
+
+    log.Printf("DeleteNginxConfig: removed blocks for basePort %d", basePort)
+    return nil
+}
+
+
 
