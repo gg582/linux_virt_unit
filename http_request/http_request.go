@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 )
 
-const certfile = "/usr/local/bin/linuxVirtualization/certs/server.crt"
-const keyfile = "/usr/local/bin/linuxVirtualization/certs/server.key"
+const certfile = LINUX_VIRT_PATH+"/certs/server.crt"
+const keyfile = LINUX_VIRT_PATH+"/certs/server.key"
 const LVIRT_INSTALL_DIR = "/usr/local/bin/linuxVirtualization"
 
 // InitHttpRequest initializes the HTTP request handler.

@@ -26,10 +26,10 @@ import (
 )
 
 // getTAG generates a unique tag for a container.
-func getTAG(mydir string, tag string) string {
+func getTAG(tag string) string {
 	var err error
 	var file *os.File
-	filePath := mydir + "/container/latest_access"
+	filePath := LINUX_VIRT_PATH + "/container/latest_access"
 	file, err = os.OpenFile(filePath, os.O_RDWR, os.FileMode(0644))
 	if err != nil {
 		log.Printf("getTAG: Error opening latest_access file '%s': %v", filePath, err)

@@ -112,7 +112,7 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
 
 
 	// Generate a unique tag for the container
-	tag := getTAG(mydir, info.TAG)
+	tag := getTAG(info.TAG)
 	info.TAG = tag
 	log.Printf("createContainer: Generated tag '%s'", tag)
 
