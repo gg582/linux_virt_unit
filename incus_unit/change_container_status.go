@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+    "os/exec"
 
 	"github.com/lxc/incus/shared/api"
 	"go.mongodb.org/mongo-driver/bson"
@@ -61,6 +62,9 @@ func ChangeState(tag string, newState string) {
 		bson.M{"TAG": tag},
 		bson.D{{"$set", bson.M{"vmstatus": inst.Status}}},
 	)
+    if newState == "start" {
+        exec.Command("/usr/bin/manage_ssh").Run()
+    }
 	if err != nil {
 		log.Printf("ChangeState: MongoDB update to %s failed for tag '%s': %v", newState, tag, err)
 		WorkQueue.WQReturns <- fmt.Errorf("failed to update container status to %s in DB: %w", newState, err)
