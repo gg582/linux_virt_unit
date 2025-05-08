@@ -22,7 +22,7 @@ type PortTagTarget struct {
 
 var nginxMutex sync.Mutex
 
-var NGINX_LOCATION = "/etc/nginx.conf"
+var NGINX_LOCATION = "/etc/nginx/nginx.conf"
 
 type StateChangeTarget struct {
 	Tag    string
