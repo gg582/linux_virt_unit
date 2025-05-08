@@ -22,8 +22,6 @@ type PortTagTarget struct {
 
 var nginxMutex sync.Mutex
 
-var NGINX_LOCATION = "/etc/nginx/nginx.conf"
-
 type StateChangeTarget struct {
 	Tag    string
 	Status string
@@ -77,13 +75,13 @@ func (q *ContainerQueue) Stop() {
 }
 func syncNginxToAdd(tag string, allocatedPort int) {
 	// Delete the last closing brace "}" from the Nginx configuration file
-	cmdDelLastLine := exec.Command("bash", "-c", `tac "$0" | sed '0,/}/ s/}//' | tac > /tmp/temp.txt`, NGINX_LOCATION)
+	cmdDelLastLine := exec.Command("bash", "-c", `tac "$0" | sed '0,/}/ s/}//' | tac > /tmp/temp.txt`, linux_virt_unit.NGINX_LOCATION)
 	err := cmdDelLastLine.Run()
 	if err != nil {
 		log.Printf("syncNginxToAdd: (nginx) Cannot delete last line of nginx config. %v", err)
 		return
 	}
-	cmdCopyNginx := exec.Command("mv", "/tmp/temp.txt", NGINX_LOCATION)
+	cmdCopyNginx := exec.Command("mv", "/tmp/temp.txt", linux_virt_unit.NGINX_LOCATION)
 	err = cmdCopyNginx.Run()
 	if err != nil {
 		log.Println("syncNginxToAdd: (nginx) Cannot copy file to nginx config")
@@ -141,7 +139,7 @@ func syncNginxToAdd(tag string, allocatedPort int) {
         				allocatedPort, currentContainerIPv6, allocatedPort+1, currentContainerIPv6, allocatedPort+2, currentContainerIPv6)
 
 			// Use sed command to append the configuration
-            cmdStr := fmt.Sprintf("cat <<EOF >> %s\n%s\nEOF", NGINX_LOCATION, nginxConfig)
+            cmdStr := fmt.Sprintf("cat <<EOF >> %s\n%s\nEOF", linux_virt_unit.NGINX_LOCATION, nginxConfig)
             cmd := exec.Command("bash", "-c", cmdStr)
 			output, err := cmd.CombinedOutput()
 			if err != nil {

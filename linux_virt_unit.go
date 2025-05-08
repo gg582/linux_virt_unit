@@ -27,3 +27,4 @@ type ContainerInfo struct {
 
 var LinuxVirtualizationAPIRouter *mux.Router
 var LINUX_VIRT_PATH = "/usr/local/bin/linuxVirtualization"
+var NGINX_LOCATION = "/etc/nginx/nginx.conf"

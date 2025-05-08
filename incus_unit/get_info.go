@@ -29,7 +29,7 @@ import (
 func getTAG(tag string) string {
 	var err error
 	var file *os.File
-	filePath := LINUX_VIRT_PATH + "/container/latest_access"
+	filePath := linux_virt_unit.LINUX_VIRT_PATH + "/container/latest_access"
 	file, err = os.OpenFile(filePath, os.O_RDWR, os.FileMode(0644))
 	if err != nil {
 		log.Printf("getTAG: Error opening latest_access file '%s': %v", filePath, err)

@@ -12,6 +12,7 @@ import (
 	"time"
     "sync"
 
+    "github.com/yoonjin67/linux_virt_unit"
 	db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -200,7 +201,7 @@ func DeleteByTag(wr http.ResponseWriter, req *http.Request) {
 }
 
 func DeleteNginxConfig(basePort int) error {
-    nginxConfPath := NGINX_LOCATION
+    nginxConfPath := linux_virt_unit.NGINX_LOCATION
 
 
     awkCommand := fmt.Sprintf(`awk '
