@@ -165,6 +165,8 @@ func syncNginxToAdd(tag string, allocatedPort int) {
 // worker is the worker goroutine that processes container creation tasks.
 func (q *ContainerQueue) ContainerCreationWorker() {
 	defer q.wg.Done()
+    nginxMutex.Lock()
+    defer nginxMutex.Unlock()
 	log.Println("worker: Worker goroutine started.")
 	for info := range q.Tasks {
 		log.Println("worker: Received container creation task.")
@@ -233,9 +235,7 @@ func (q *ContainerQueue) NginxSyncWorker() {
 	log.Println("NginxSyncWorker: Nginx sync worker started.")
 	for target := range WorkQueue.RetrieveTag {
 		log.Printf("NginxSyncWorker: Received Nginx sync request for tag '%s', port %d.", target.tag, target.port)
-        nginxMutex.Lock()
-		syncNginxToAdd(target.tag, target.port)
-        nginxMutex.Unlock()
+		go syncNginxToAdd(target.tag, target.port)
 		log.Printf("NginxSyncWorker: Nginx sync completed for tag '%s', port %d.", target.tag, target.port)
 	}
 	log.Println("NginxSyncWorker: Nginx sync worker finished.")
