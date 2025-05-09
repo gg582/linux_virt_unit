@@ -221,7 +221,7 @@ func (q *ContainerQueue) StateChangeWorker() {
 	defer q.wg.Done()
 	for target := range q.StateTasks {
 		if target.Status == "delete" {
-			go DeleteContainerByName(target.Tag)    nginxMutex.Lock()
+			go DeleteContainerByName(target.Tag)
     defer nginxMutex.Unlock()
 
 		} else {
