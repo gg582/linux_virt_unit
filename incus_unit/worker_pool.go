@@ -74,6 +74,8 @@ func (q *ContainerQueue) Stop() {
 	log.Println("Stop: All worker goroutines stopped.")
 }
 func syncNginxToAdd(tag string, allocatedPort int) {
+	nginxMutex.Lock()
+	defer nginxMutex.Unlock()
 	// Delete the last closing brace "}" from the Nginx configuration file
 	cmdDelLastLine := exec.Command("bash", "-c", `tac "$0" | sed '0,/}/ s/}//' | tac > /tmp/temp.txt`, linux_virt_unit.NGINX_LOCATION)
 	err := cmdDelLastLine.Run()
@@ -165,8 +167,6 @@ func syncNginxToAdd(tag string, allocatedPort int) {
 // worker is the worker goroutine that processes container creation tasks.
 func (q *ContainerQueue) ContainerCreationWorker() {
 	defer q.wg.Done()
-    nginxMutex.Lock()
-    defer nginxMutex.Unlock()
 	log.Println("worker: Worker goroutine started.")
 	for info := range q.Tasks {
 		log.Println("worker: Received container creation task.")
@@ -221,7 +221,8 @@ func (q *ContainerQueue) StateChangeWorker() {
 	defer q.wg.Done()
 	for target := range q.StateTasks {
 		if target.Status == "delete" {
-			go DeleteContainerByName(target.Tag)
+			go DeleteContainerByName(target.Tag)    nginxMutex.Lock()
+    defer nginxMutex.Unlock()
 
 		} else {
 			go ChangeState(target.Tag, target.Status)
