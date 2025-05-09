@@ -21,6 +21,7 @@ type PortTagTarget struct {
 }
 
 var nginxMutex sync.Mutex
+var nginxDeletionMutex sync.Mutex
 
 type StateChangeTarget struct {
 	Tag    string
@@ -74,8 +75,6 @@ func (q *ContainerQueue) Stop() {
 	log.Println("Stop: All worker goroutines stopped.")
 }
 func syncNginxToAdd(tag string, allocatedPort int) {
-	nginxMutex.Lock()
-	defer nginxMutex.Unlock()
 	// Delete the last closing brace "}" from the Nginx configuration file
 	cmdDelLastLine := exec.Command("bash", "-c", `tac "$0" | sed '0,/}/ s/}//' | tac > /tmp/temp.txt`, linux_virt_unit.NGINX_LOCATION)
 	err := cmdDelLastLine.Run()
@@ -221,9 +220,9 @@ func (q *ContainerQueue) StateChangeWorker() {
 	defer q.wg.Done()
 	for target := range q.StateTasks {
 		if target.Status == "delete" {
+	        nginxDeletionMutex.Lock()
 			go DeleteContainerByName(target.Tag)
-    defer nginxMutex.Unlock()
-
+	        nginxDeletionMutex.Unlock()
 		} else {
 			go ChangeState(target.Tag, target.Status)
 		}
@@ -236,7 +235,9 @@ func (q *ContainerQueue) NginxSyncWorker() {
 	log.Println("NginxSyncWorker: Nginx sync worker started.")
 	for target := range WorkQueue.RetrieveTag {
 		log.Printf("NginxSyncWorker: Received Nginx sync request for tag '%s', port %d.", target.tag, target.port)
+	    nginxMutex.Lock()
 		go syncNginxToAdd(target.tag, target.port)
+	    nginxMutex.Unlock()
 		log.Printf("NginxSyncWorker: Nginx sync completed for tag '%s', port %d.", target.tag, target.port)
 	}
 	log.Println("NginxSyncWorker: Nginx sync worker finished.")
