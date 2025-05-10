@@ -236,7 +236,7 @@ func (q *ContainerQueue) NginxSyncWorker() {
     for target := range WorkQueue.RetrieveTag {
         log.Printf("NginxSyncWorker: Received Nginx sync request for tag '%s', port %d.", target.tag, target.port)
         nginxMutex.Lock()
-        go syncNginxToAdd(target.tag, target.port)
+        syncNginxToAdd(target.tag, target.port)
         nginxMutex.Unlock()
         log.Printf("NginxSyncWorker: Nginx sync completed for tag '%s', port %d.", target.tag, target.port)
     }
