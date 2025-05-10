@@ -35,8 +35,6 @@ var buf bytes.Buffer
 
 const INITIAL_PORT = 27020
 
-var ADDR string = "http://hobbies.yoonjin2.kr"
-
 // Mutex to manage port allocation.
 var containerManageMutex sync.Mutex
 var portCreatorMutex sync.Mutex
