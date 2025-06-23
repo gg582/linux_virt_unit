@@ -118,7 +118,8 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     case WorkQueue.Tasks <- info:
         log.Println("CreateContainer: Added container creation task to the work queue.")
         string_Reply, _ := json.Marshal(info)
-        wr.Write(string_Reply)
+        wr.WriteHeader(http.StatusOK)
+        fmt.Fprintf(wr, string(string_Reply))
         return
     default:
         log.Println("CreateContainer: Work queue is full.")
