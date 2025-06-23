@@ -22,7 +22,7 @@ import (
 const MAX_PORT = 60001
 
 var IncusCli client.InstanceServer
-var mydir string = "/usr/local/bin/linuxVirtualization/"
+var mydir string = linux_virt_unit.LINUX_VIRT_PATH
 var SERVER_IP = "127.0.0.1"
 var PORT_LIST = make([]int, 0, 100000)
 var flag bool
