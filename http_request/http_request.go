@@ -23,11 +23,7 @@ func InitHttpRequest() {
     // Register container related endpoints.
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/register", incus_unit.Register).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/create", incus_unit.CreateContainer).Methods("POST")
-<<<<<<< HEAD
-	mux.HandleFunc("/upload", file_upload.uploadHandler).Methods("POST")
-=======
 	linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/upload", file_upload.UploadHandler).Methods("POST")
->>>>>>> 33f3d43 (added file push function;not ready yet)
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/request", incus_unit.GetContainers).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/delete", incus_unit.DeleteByTag).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/stop", incus_unit.ChangeStateHandler("stop")).Methods("POST")
