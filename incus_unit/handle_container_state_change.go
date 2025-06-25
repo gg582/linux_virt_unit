@@ -96,6 +96,10 @@ func DeleteContainerByName(tag string) {
 
 func ChangeStateHandler(state string) http.HandlerFunc {
     return func(wr http.ResponseWriter, req *http.Request) {
+        if req.Method != http.MethodPost {
+            http.Error(wr, "This endpoint allows only POST methods. aborting", http.StatusMethodNotAllowed)
+            return
+        }
         tagBytes, err := io.ReadAll(req.Body)
         if err != nil {
             log.Printf("%s: Failed to read request body: %v", state, err)

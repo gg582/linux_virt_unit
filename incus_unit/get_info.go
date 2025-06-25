@@ -93,6 +93,10 @@ func getTAG(tag string) string {
 // @Failure 400
 // @Router /request [post]
 func GetContainers(wr http.ResponseWriter, req *http.Request) {
+    if req.Method != http.MethodPost {
+        http.Error(wr, "This endpoint allows only POST methods. aborting", http.StatusMethodNotAllowed)
+        return
+    }
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 

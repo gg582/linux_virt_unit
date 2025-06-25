@@ -9,6 +9,7 @@ import (
     httpSwagger "github.com/swaggo/http-swagger/v2"
     "github.com/yoonjin67/linux_virt_unit"
     "github.com/yoonjin67/linux_virt_unit/incus_unit"
+    "github.com/yoonjin67/linux_virt_unit/file_upload"
     "path/filepath"
 )
 
@@ -22,6 +23,7 @@ func InitHttpRequest() {
     // Register container related endpoints.
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/register", incus_unit.Register).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/create", incus_unit.CreateContainer).Methods("POST")
+	mux.HandleFunc("/upload", file_upload.uploadHandler).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/request", incus_unit.GetContainers).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/delete", incus_unit.DeleteByTag).Methods("POST")
     linux_virt_unit.LinuxVirtualizationAPIRouter.HandleFunc("/stop", incus_unit.ChangeStateHandler("stop")).Methods("POST")

@@ -66,6 +66,10 @@ func CheckUserExists(username string, password string, ctx context.Context) bool
 // @Failure 400
 // @Router /register [post]
 func Register(wr http.ResponseWriter, req *http.Request) {
+    if req.Method != http.MethodPost {
+        http.Error(wr, "This endpoint allows only POST methods. aborting", http.StatusMethodNotAllowed)
+        return
+    }
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 

@@ -144,6 +144,11 @@ func SetupSort(c *mongo.Collection) bool {
 
 // UseContainer returns all containers matching a manually matched username and password
 func UseContainer(wr http.ResponseWriter, req *http.Request) {
+    if req.Method != http.MethodPost {
+        http.Error(wr, "This endpoint allows only POST methods. aborting",
+        http.StatusMethodNotAllowed)
+        return
+    }
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 

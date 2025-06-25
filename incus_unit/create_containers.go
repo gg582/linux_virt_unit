@@ -84,6 +84,10 @@ func TouchFile(name string) {
 //
 // @Router /create [post]
 func CreateContainer(wr http.ResponseWriter, req *http.Request) {
+    if req.Method != http.MethodPost {
+        http.Error(wr, "This endpoint allows only POST methods. aborting", http.StatusMethodNotAllowed)
+        return
+    }
     wr.Header().Set("Content-Type", "application/json; charset=utf-8")
     log.Println("CreateContainer: Received request to create a container.")
 
