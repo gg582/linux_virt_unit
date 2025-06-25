@@ -1,110 +1,89 @@
 
-# 🖥️ IncuSpeed Basic GUI Client
+# linux\_virt\_unit
 
-A graphical interface for the [IncuSpeed Project](https://github.com/yoonjin67/incuspeed) — a lightweight container management platform using LXD/Incus.
+## Purpose
 
-This client allows users to securely communicate with the IncuSpeed server over HTTPS and manage containers with ease.
+`linux_virt_unit` is a Go module designed to control Incus (LXD alternative) containers. It provides backend logic for creating, deleting, and managing containers via a REST API, including secure user authentication, port allocation, and state control. This module is part of the LVirt Project, designed for lightweight and secure virtualization management with TLS-secured API access.
 
----
+## Features
 
-## 🚀 Features
+| Feature                         | Description                                                                                   |
+|---------------------------------|-----------------------------------------------------------------------------------------------|
+| **Container Creation**          | Creates a new container using encrypted user credentials and distro/version info. *(POST /create)*  |
+| **Container Deletion**          | Deletes container(s) by tag or associated username. *(POST /delete)*                          |
+| **Container State Management**  | Dynamically start, stop, pause, resume, and restart containers. *(POST /start, /stop, /pause, /resume, /restart)* |
+| **User Authentication**         | AES-encrypted credentials and bcrypt password verification. *(POST /authenticate)*            |
+| **Port Pooling**                | Sequential port allocation and release using a mutex-protected heap. *(GET /port-pool)*       |
+| **Asynchronous Task Handling**  | Goroutine-based worker pool for responsive and parallel container operations. *(POST /tasks)* |
 
-- Built with **KivyMD**
-- Secure HTTPS communication using client-side certificate
-- AES-encrypted messages and bcrypt-secured login
-- Supports container state management (start, pause, resume, restart)
-- Modern Material UI design
+## Structure
 
----
-
-## 📦 Installation & Usage
-
-* Disclaimer: This application's buildozer.specs has automatically generated. *
-* Change /home/yjlee to your directory *
-
-### 1. Clone the Repository
-
-```bash
-git clone https://gitlab.yoonjin2.kr/yjlee/linuxvirtualization incuspeed
-cd incuspeed
 ```
-
-### 2. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Generate Client Certificate
-
-This app requires a valid client certificate for encrypted HTTPS communication with the IncuSpeed server.
-
-🔐 **Important:**  
-Use the `utils/keygen.sh` script included in the main [IncuSpeed repository](https://gitlab.yoonjin2.kr/yjlee/linuxvirtualization) to generate the certificate.
-
-
-### 4. Run the GUI App
-#### 🗂 Directory Overview (Included at IncuSpeed main project)
-
-```text
-app/
-├── certs/
-│   ├── client.crt
-│   └── client.key
-├── main.py
-├── requirements.txt
+linux_virt_unit/
+├── crypto
+│   └── crypto.go                  # Encryption logic
+├── go.mod
+├── go.sum
+├── http_request
+│   └── http_request.go            # RestAPI endpoints
+├── incus_unit
+│   ├── base_images.go             # Auto-generated base image fingerprints
+│   ├── change_container_status.go # Logic for changing container status
+│   ├── create_containers.go       # Logic for creating containers
+│   ├── get_info.go                # Fetches miscellaneous information
+│   ├── handle_container_state_change.go # Logic for start/stop/pause/resume/restart
+│   ├── handle_user_info.go        # User registration and verification
+│   └── worker_pool.go             # Multi-processing worker pool
+├── linux_virt_unit.go            # Shared structure definitions
+├── mongo_connect
+│   └── mongo_connect.go          # MongoDB client connection setup
 └── README.md
 ```
 
-```bash
-python main.py
+## Swagger Request Example
+
+**POST /create**  
+**Content-Type:** `application/json`
+
+```json
+{
+  "username": "user123",
+  "username_iv": "ivValue1",
+  "password": "encryptedPassword",
+  "password_iv": "ivValue2",
+  "key": "aesEncryptionKey",
+  "tag": "ubuntu20",
+  "serverip": "10.72.1.100",
+  "serverport": "27020",
+  "vmstatus": "running",
+  "distro": "ubuntu",
+  "version": "20.04"
+}
 ```
 
----
+## Security
 
-## 🔧 Supported Server Functions
+- AES-256-GCM encryption for credentials
+- bcrypt hashing for password comparison
+- TLS-enabled REST API server
+- Port-per-container network allocation
 
-This client communicates with the following IncuSpeed server endpoints:
+## Architecture
 
-| Method | Endpoint     | Description               |
-|--------|--------------|---------------------------|
-| POST   | `/start`     | Start a container         |
-| POST   | `/pause`     | Pause a running container |
-| POST   | `/resume`    | Resume a paused container |
-| POST   | `/restart`   | Restart a container       |
+```
+[Client (KivyMD)] ⇄ [REST API (Go)] ⇄ [linux_virt_unit] ⇄ [Incus API]
+                                       ⇅
+                                   [MongoDB]
+```
 
-Other endpoints (`/create`, `/delete`, `/request`, etc.) are available and documented through Swagger:
+## Requirements
 
-📚 **Swagger Documentation**  
-Access it via your server:  
-`https://<your-domain>:32000/swagger/index.html`
+- Go 1.23 or higher
+- Incus installed (NOT LXD)
+- MongoDB 6.0
+- Ubuntu host with container support
 
----
+## License
 
-## 🔐 Authentication
-
-- Uses bcrypt to verify credentials.
-- AES encryption for client-server message security.
-- Certificates are required for communication.
-
-
----
-
-## 📝 Notes
-
-- Make sure the IncuSpeed server is running and accessible at the correct domain/port.
-- Adjust `server_domain` and `https_port` settings in your code or config as needed.
-- You must **generate your certificate before launching the app**.
-
----
-
-## 📄 License
-
-MIT License © 2025 IncuSpeed Project
-
----
-
-## 🙌 Contributing
-
-Feel free to submit issues, pull requests, or suggestions!
+MIT License
 
