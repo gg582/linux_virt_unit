@@ -137,6 +137,10 @@ func UploadHandler(wr http.ResponseWriter, req *http.Request) {
 	
 	log.Printf("Container directory created/ensured: %s", containerDestDir)
 
+    destInfo, err := os.Stat(containerDestPath)
+    if destInfo.IsDir() {
+        containerDestPath = filepath.Join(containerDestPath,filepath.Base(originalFilePath))
+    }
 	// Push file into container with 777 permissions
 	err = incus_unit.IncusCli.CreateInstanceFile(containerName, containerDestPath, client.InstanceFileArgs{
 		Content: fileReader,
