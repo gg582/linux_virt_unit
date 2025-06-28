@@ -47,9 +47,9 @@ func InitHttpRequest() {
     srv := &http.Server{
         Handler:      linux_virt_unit.LinuxVirtualizationAPIRouter,
         Addr:         ":32000",
-        ReadTimeout:  15 * time.Second,
-        WriteTimeout: 15 * time.Second,
-        IdleTimeout:  60 * time.Second,
+        ReadTimeout:  60 * time.Minute,
+        WriteTimeout: 60 * time.Minute,
+        IdleTimeout:  60 * time.Minute,
     }
 
     log.Printf("Starting server on port 32000")
