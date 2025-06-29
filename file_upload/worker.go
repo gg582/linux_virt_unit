@@ -9,7 +9,7 @@ import (
 
 	client "github.com/lxc/incus/client"
 	incusapi "github.com/lxc/incus/shared/api"
-	"github.com/yoonjin67/linux_virt_unit/incus_unit"
+	"github.com/gg582/linux_virt_unit/incus_unit"
 )
 
 const (
