@@ -12,7 +12,7 @@ import (
     "strconv"
     "time"
 
-    linux_virt_unit "github.com/yoonjin67/linux_virt_unit"
+    linux_virt_unit "github.com/gg582/linux_virt_unit"
 )
 
 const MAX_PORT = 65535

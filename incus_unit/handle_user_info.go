@@ -15,9 +15,9 @@ import (
     "golang.org/x/crypto/bcrypt"
     //for mongodb
 
-    "github.com/yoonjin67/linux_virt_unit"
-    linux_virt_unit_crypto "github.com/yoonjin67/linux_virt_unit/crypto"
-    db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
+    "github.com/gg582/linux_virt_unit"
+    linux_virt_unit_crypto "github.com/gg582/linux_virt_unit/crypto"
+    db "github.com/gg582/linux_virt_unit/mongo_connect"
     //custom packages
 )
 

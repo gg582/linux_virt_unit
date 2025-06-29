@@ -4,9 +4,9 @@ package incus_unit
 import (
     "fmt"
     client "github.com/lxc/incus/client"
-    linux_virt_unit_crypto "github.com/yoonjin67/linux_virt_unit/crypto"
+    linux_virt_unit_crypto "github.com/gg582/linux_virt_unit/crypto"
     "github.com/lxc/incus/shared/api"
-    "github.com/yoonjin67/linux_virt_unit"
+    "github.com/gg582/linux_virt_unit"
     "log"
     "os"
     "os/exec"

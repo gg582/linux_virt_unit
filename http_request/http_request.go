@@ -7,9 +7,9 @@ import (
 
     "github.com/gorilla/mux"
     httpSwagger "github.com/swaggo/http-swagger/v2"
-    "github.com/yoonjin67/linux_virt_unit"
-    "github.com/yoonjin67/linux_virt_unit/incus_unit"
-    "github.com/yoonjin67/linux_virt_unit/file_upload"
+    "github.com/gg582/linux_virt_unit"
+    "github.com/gg582/linux_virt_unit/incus_unit"
+    "github.com/gg582/linux_virt_unit/file_upload"
     "path/filepath"
 )
 

@@ -12,8 +12,8 @@ import (
     "time"
     "sync"
 
-    "github.com/yoonjin67/linux_virt_unit"
-    db "github.com/yoonjin67/linux_virt_unit/mongo_connect"
+    "github.com/gg582/linux_virt_unit"
+    db "github.com/gg582/linux_virt_unit/mongo_connect"
     "go.mongodb.org/mongo-driver/bson"
 )
 
