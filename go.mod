@@ -1,13 +1,14 @@
-module github.com/yoonjin67/linux_virt_unit
+module github.com/gg582/linux_virt_unit
 
-go 1.23.0
+go 1.24.4
 
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/lxc/incus v0.7.0
 	github.com/swaggo/http-swagger/v2 v2.0.2
-	go.mongodb.org/mongo-driver v1.17.3
-	golang.org/x/crypto v0.37.0
+	github.com/gg582/linux_virt_unit v0.1.4
+	go.mongodb.org/mongo-driver v1.17.4
+	golang.org/x/crypto v0.39.0
 )
 
 require (
@@ -37,13 +38,13 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/zitadel/oidc/v2 v2.12.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/oauth2 v0.18.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
-	golang.org/x/term v0.31.0 // indirect
-	golang.org/x/text v0.24.0 // indirect
-	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
+	golang.org/x/sync v0.15.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/term v0.32.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
+	golang.org/x/tools v0.33.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
