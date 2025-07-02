@@ -6,7 +6,6 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/lxc/incus v0.7.0
 	github.com/swaggo/http-swagger/v2 v2.0.2
-	github.com/gg582/linux_virt_unit v0.1.4
 	go.mongodb.org/mongo-driver v1.17.4
 	golang.org/x/crypto v0.39.0
 )
