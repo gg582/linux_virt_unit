@@ -93,8 +93,10 @@ func processUploadTask(task UploadTask) error {
 	}
 	log.Printf("INFO: Directory '%s' ensured in container '%s'.", containerDestDir, task.ContainerName)
 
+    hostFilename := filepath.Base(task.HostFilename)
+    containerDestDir = filepath.Join(containerDestDir, hostFilename)
 	// Push file to container (os.File implements io.ReadSeeker)
-	err = incus_unit.IncusCli.CreateInstanceFile(task.ContainerName, task.ContainerDestinationPath, client.InstanceFileArgs{
+	err = incus_unit.IncusCli.CreateInstanceFile(task.ContainerName, containerDestDir, client.InstanceFileArgs{
 		Content: file,
 		Mode:    0777,
 		UID:     0,

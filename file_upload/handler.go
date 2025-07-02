@@ -16,6 +16,7 @@ const uploadTempDir = "/tmp/incus_uploads" // Host temporary directory
 type UploadTask struct {
 	HostTempFilePath         string
 	ContainerName            string
+    HostFilename             string
 	ContainerDestinationPath string
 }
 
@@ -26,6 +27,7 @@ func UploadHandler(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 	originalFilePath := req.Header.Get("X-File-Path")
+    originalFilename := filepath.Base(req.Header.Get("X-Host-Path"))
 	containerName := req.Header.Get("X-Container-Name")
 	if originalFilePath == "" || containerName == "" {
 		http.Error(wr, "Missing X-File-Path or X-Container-Name header.", http.StatusBadRequest)
@@ -71,6 +73,7 @@ func UploadHandler(wr http.ResponseWriter, req *http.Request) {
 	task := UploadTask{
 		HostTempFilePath:         hostTempFilePath,
 		ContainerName:            containerName,
+        HostFilename :            originalFilename,
 		ContainerDestinationPath: cleanContainerDestPath,
 	}
 	EnqueueTask(task)
