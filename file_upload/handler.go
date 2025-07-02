@@ -67,7 +67,7 @@ func UploadHandler(wr http.ResponseWriter, req *http.Request) {
 		http.Error(wr, "File transfer failed.", http.StatusInternalServerError)
 		return
 	}
-	log.Printf("INFO: Received %d bytes, saved to %s.", bytesWritten, hostTempFilePath)
+	log.Printf("Upload Info: Received %d bytes, saved to %s.", bytesWritten, hostTempFilePath)
 
 	// Enqueue task for asynchronous Incus push
 	task := UploadTask{
@@ -77,7 +77,7 @@ func UploadHandler(wr http.ResponseWriter, req *http.Request) {
 		ContainerDestinationPath: cleanContainerDestPath,
 	}
 	EnqueueTask(task)
-	log.Printf("INFO: Task enqueued for %s to %s.", originalFilePath, containerName)
+	log.Printf("Upload Info: Task enqueued for %s to %s.", originalFilePath, containerName)
 
 	// Send immediate 202 Accepted response
 	wr.WriteHeader(http.StatusAccepted)

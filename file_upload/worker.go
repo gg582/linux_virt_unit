@@ -21,14 +21,14 @@ const (
 func StartFilePushWorker() {
 	for {
 		task := DequeueTask()
-		log.Printf("INFO: Worker processing task for %s from %s.", task.ContainerName, task.HostFilename)
+		log.Printf("Upload Info: Worker processing task for %s from %s.", task.ContainerName, task.HostFilename)
 
 		// Defer cleanup of the temporary file
 		defer func(filePath string) {
 			if err := os.Remove(filePath); err != nil {
 				log.Printf("ERROR: Worker: Failed to remove temp file '%s': %v", filePath, err)
 			} else {
-				log.Printf("INFO: Worker: Cleaned up temp file: %s", filePath)
+				log.Printf("Upload Info: Worker: Cleaned up temp file: %s", filePath)
 			}
 		}(task.HostTempFilePath)
 
@@ -91,10 +91,17 @@ func processUploadTask(task UploadTask) error {
 	if err = op.Wait(); err != nil {
 		return fmt.Errorf("incus: mkdir failed in '%s' for '%s': %w", task.ContainerName, containerDestDir, err)
 	}
-	log.Printf("INFO: Directory '%s' ensured in container '%s'.", containerDestDir, task.ContainerName)
+	log.Printf("Upload Info: Directory '%s' ensured in container '%s'.", containerDestDir, task.ContainerName)
 
     hostFilename := filepath.Base(task.HostFilename)
-    containerDestDir = filepath.Join(containerDestDir, hostFilename)
+    stat, err := os.Stat(containerDestDir)
+    if err != nil {
+        log.Printf("Upload Info: Directory type check failed at os.Stat()")
+    }
+
+    if stat.IsDir() { //dirCheck
+        containerDestDir = filepath.Join(containerDestDir, hostFilename)
+    }
 	// Push file to container (os.File implements io.ReadSeeker)
 	err = incus_unit.IncusCli.CreateInstanceFile(task.ContainerName, containerDestDir, client.InstanceFileArgs{
 		Content: file,
@@ -106,7 +113,7 @@ func processUploadTask(task UploadTask) error {
 		return fmt.Errorf("incus: file push failed for '%s' to '%s': %w", task.ContainerName, task.ContainerDestinationPath, err)
 	}
 
-	log.Printf("INFO: File pushed to Incus container '%s' at '%s'.", task.ContainerName, task.ContainerDestinationPath)
+	log.Printf("Upload Info: File pushed to Incus container '%s' at '%s'.", task.ContainerName, task.ContainerDestinationPath)
 	return nil
 }
 

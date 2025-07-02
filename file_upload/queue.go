@@ -12,7 +12,7 @@ var once sync.Once
 func InitWorkQueue() {
 	once.Do(func() {
 		taskQueue = make(chan UploadTask, 100)
-		log.Println("INFO: Work queue initialized.")
+		log.Println("Upload Info: Work queue initialized.")
 	})
 }
 
@@ -22,7 +22,7 @@ func EnqueueTask(task UploadTask) {
 		log.Fatal("ERROR: Task queue not initialized.")
 	}
 	taskQueue <- task
-	log.Printf("INFO: Queue: Task enqueued. Size: %d", len(taskQueue))
+	log.Printf("Upload Info: Queue: Task enqueued. Size: %d", len(taskQueue))
 }
 
 // DequeueTask retrieves an UploadTask from the queue, blocking if empty.
@@ -31,7 +31,7 @@ func DequeueTask() UploadTask {
 		log.Fatal("ERROR: Task queue not initialized.")
 	}
 	task := <-taskQueue
-	log.Printf("INFO: Queue: Task dequeued. Size: %d", len(taskQueue))
+	log.Printf("Upload Info: Queue: Task dequeued. Size: %d", len(taskQueue))
 	return task
 }
 
