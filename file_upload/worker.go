@@ -78,9 +78,10 @@ func processUploadTask(task UploadTask) error {
 
 	// Ensure destination directory exists in container
 	containerDestDir := filepath.Dir(task.ContainerDestinationPath)
+    containerPushFileBasename := filepath.Base(task.ContainerDestinationPath)
 	if containerDestDir == "." {
 		containerDestDir = "/"
-	}
+	} 
 	op, err := incus_unit.IncusCli.ExecInstance(task.ContainerName, incusapi.InstanceExecPost{
 		Command:   []string{"mkdir", "-p", containerDestDir},
 		WaitForWS: true,
@@ -94,12 +95,14 @@ func processUploadTask(task UploadTask) error {
 	log.Printf("Upload Info: Directory '%s' ensured in container '%s'.", containerDestDir, task.ContainerName)
 
     hostFilename := filepath.Base(task.HostFilename)
-    stat, err := os.Stat(containerDestDir)
+    stat, err := os.Stat(task.ContainerDestinationPath)
     if err != nil {
         log.Printf("Upload Info: Directory type check failed at os.Stat()")
     }
 
-    if stat.IsDir() { //dirCheck
+    if filepath.Ext(containerPushFileBasename) != "" {
+        containerDestDir = filepath.Join(containerDestDir, containerPushFileBasename)
+    } else if stat.IsDir() { //dirCheck
         containerDestDir = filepath.Join(containerDestDir, hostFilename)
     }
 	// Push file to container (os.File implements io.ReadSeeker)
