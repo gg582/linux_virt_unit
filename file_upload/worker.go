@@ -21,7 +21,7 @@ const (
 func StartFilePushWorker() {
 	for {
 		task := DequeueTask()
-		log.Printf("INFO: Worker processing task for %s from %s.", task.ContainerName, task.HostTempFilePath)
+		log.Printf("INFO: Worker processing task for %s from %s.", task.ContainerName, task.HostFilename)
 
 		// Defer cleanup of the temporary file
 		defer func(filePath string) {

@@ -81,5 +81,5 @@ func UploadHandler(wr http.ResponseWriter, req *http.Request) {
 
 	// Send immediate 202 Accepted response
 	wr.WriteHeader(http.StatusAccepted)
-	fmt.Fprintf(wr, "File '%s' queued for processing on container '%s'.\n", originalFilePath, containerName)
+	fmt.Fprintf(wr, "File '%s' queued for processing on container '%s'.\n", originalFilename, containerName)
 }
