@@ -170,39 +170,8 @@ func Register(wr http.ResponseWriter, req *http.Request) {
 //       "key": "encryptionKey",
 //    }
 //
-// @Success 200 {array} linux_virt_unit.ContainerInfo "Deleted containers list for debugging"
-// [
-// {
-//
-//       "username": "user123",
-//       "username_iv": "someIV1",
-//       "password": "encryptedPassword",
-//       "password_iv": "someIV2",
-//       "key": "encryptionKey",
-//       "tag": "ubuntu20",
-//       "serverip": "10.72.1.100",
-//       "serverport": "27020",
-//       "vmstatus": "running",
-//       "distro": "ubuntu",
-//       "version": "20.04"
-//    },
-//
-//    {
-//       "username": "user122",
-//       "username_iv": "someIV1",
-//       "password": "encryptedPassword",
-//       "password_iv": "someIV2",
-//       "key": "encryptionKey",
-//       "tag": "ubuntu24",
-//       "serverip": "10.72.1.101",
-//       "serverport": "27023",
-//       "vmstatus": "running",
-//       "distro": "ubuntu",
-//       "virtual": "24.04",
-//    },
-//
-// ]
-// @Failure 400
+// @Success 200 
+// @Failure 404
 // @Router /unregister [post]
 func Unregister(wr http.ResponseWriter, req *http.Request) {
     if req.Method != http.MethodPost {
