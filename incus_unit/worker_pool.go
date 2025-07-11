@@ -2,16 +2,20 @@ package incus_unit
 
 // Task pool for container creation.
 import (
-    "fmt"
-    client "github.com/lxc/incus/client"
-    linux_virt_unit_crypto "github.com/gg582/linux_virt_unit/crypto"
-    "github.com/lxc/incus/shared/api"
-    "github.com/gg582/linux_virt_unit"
-    "log"
-    "os"
-    "os/exec"
-    "sync"
-    "time"
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"sync"
+	"time"
+
+	"github.com/gg582/linux_virt_unit"
+    "go.mongodb.org/mongo-driver/bson"
+    db "github.com/gg582/linux_virt_unit/mongo_connect"
+	linux_virt_unit_crypto "github.com/gg582/linux_virt_unit/crypto"
+	client "github.com/lxc/incus/client"
+	"github.com/lxc/incus/shared/api"
 )
 
 
@@ -30,6 +34,7 @@ type StateChangeTarget struct {
 
 type ContainerQueue struct {
     Tasks      chan linux_virt_unit.ContainerInfo
+    Unreg chan linux_virt_unit.UserInfo
     wg         sync.WaitGroup
     StateTasks chan StateChangeTarget
     RetrieveTag chan PortTagTarget
@@ -48,6 +53,7 @@ func InitWorkQueue() {
         RetrieveTag:  make(chan PortTagTarget, 1024),
         WQReturns: make(chan error, 1024),
         DeletionQueue: make(chan int, 1024),
+        Unreg: make(chan linux_virt_unit.UserInfo, 1024),
     }
     log.Println("InitWorkQueue: Container work queue initialized.")
 }
@@ -62,6 +68,8 @@ func (q *ContainerQueue) Start(numWorkers int) {
         go q.StateChangeWorker()
         q.wg.Add(1)
         go q.NginxSyncWorker() 
+        q.wg.Add(1)
+        go q.UnregisterWorker()
     }
 }
 
@@ -229,6 +237,15 @@ func (q *ContainerQueue) StateChangeWorker() {
     }
 }
 
+func (q *ContainerQueue) UnregisterWorker() {
+    defer q.wg.Done()
+    log.Println("Unregister worker started.")
+    for info := range q.Unreg {
+        log.Printf("Received username %s to unregister.", info.Username)
+        UnregisterUser(info)
+    }
+}
+
 // NginxSyncWorker is a dedicated worker to handle Nginx configuration synchronization.
 func (q *ContainerQueue) NginxSyncWorker() {
     defer q.wg.Done()
@@ -244,3 +261,61 @@ func (q *ContainerQueue) NginxSyncWorker() {
 }
 
 
+func UnregisterUser(in linux_virt_unit.UserInfo) {
+    ctx, cancel := context.WithTimeout(context.Background(), time.Minute * 5)
+    defer cancel()
+    cur, err := db.ContainerInfoCollection.Find(ctx, bson.M{})
+    if err != nil {
+        log.Printf("Unregister: Error finding container information in MongoDB: %v", err)
+        return
+    }
+    defer cur.Close(ctx)
+
+    // Collect matching containers
+    for cur.Next(ctx) {
+        var info linux_virt_unit.ContainerInfo
+        if err := cur.Decode(&info); err != nil {
+            log.Printf("Unregister: Error decoding container document from MongoDB: %v", err)
+            continue
+        }
+
+        // Decrypt stored username
+        usernameFromDB, err := linux_virt_unit_crypto.DecryptString(info.Username, info.Key, info.UsernameIV)
+        if err != nil {
+            log.Printf("Unregister: Error decrypting username from DB for tag '%s': %v", info.TAG, err)
+            continue
+        }
+
+        // Check if the decrypted username matches the requester
+        if usernameFromDB == in.Username {
+            // Retrieve container status
+            ChangeState(info.TAG, "stop")
+            DeleteContainerByName(info.TAG)
+
+            found, port := db.FindPortByTag(info.TAG)
+            if found == false {
+                log.Println("No port found on DB! Failed to delete")
+            } else {
+                log.Println("Nginx Port Deletion triggered")
+                nginxMutexToDelete.Lock()
+                DeleteNginxConfig(port)
+                ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+                defer cancel()
+                filter := bson.D{{"tag", info.TAG}}
+                _, err = db.ContainerInfoCollection.DeleteOne(ctx, filter)
+                if err != nil {
+                    log.Println("Port Deletion from MongoDB Failed!")
+                }
+                nginxMutexToDelete.Unlock()
+                defer cur.Close(ctx)
+            }
+    
+            if err != nil {
+                log.Printf("DeleteByTag: MongoDB DeleteOne failed: %v", err)
+            } else {
+                log.Println("DeleteByTag: MongoDB DeleteOne Success.")
+            }
+        }
+    }
+    DeleteExistingUser(in.Username, in.Password, ctx)
+}

@@ -213,11 +213,11 @@ func InitMongoDB() {
 
     //obtain collections
 
-    ContainerInfoCollection = MongoClient.Database("LVIRT_CONTAINER").Collection("Container Info Collections")
+    ContainerInfoCollection = MongoClient.Database("INCUSPEED_CONTAINER").Collection("Container Info Collections")
     if SetupSort(ContainerInfoCollection) == false {
         log.Println("Error setting up sort")
     }
-    UserInfoCollection = MongoClient.Database("LVIRT_USER").Collection("User Collections")
+    UserInfoCollection = MongoClient.Database("INCUSPEED_USER").Collection("User Collections")
 
     log.Println("MongoDB Connected")
 }

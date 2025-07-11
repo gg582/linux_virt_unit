@@ -119,14 +119,19 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
     //Received request (encrypted)
 
     // Decrypt the username
-    decodedUsername, err := linux_virt_unit_crypto.DecryptString(in.Username, in.Key, in.UsernameIV)
+    in.Username, err = linux_virt_unit_crypto.DecryptString(in.Username, in.Key, in.UsernameIV)
     if err != nil {
         log.Printf("GetContainers: Failed to decrypt username: %v", err)
         http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
         return
     }
-    log.Printf("GetContainers: Decrypted username: '%s'.", decodedUsername)
+    log.Printf("GetContainers: Decrypted username: '%s'.", in.Username)
 
+    if CheckUserExists(in.Username, in.Password, ctx) == false {
+        wr.WriteHeader(404)
+        wr.Write([]byte("No user found\n"))
+        return
+    }
     // Manually scan the entire collection
     cur, err := db.ContainerInfoCollection.Find(ctx, bson.M{})
     if err != nil {
@@ -153,7 +158,7 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
         }
 
         // Check if the decrypted username matches the requester
-        if usernameFromDB == decodedUsername {
+        if usernameFromDB == in.Username {
             // Retrieve container status
             inst, _, err := IncusCli.GetInstance(info.TAG)
             if err == nil {
@@ -179,5 +184,6 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
 
     wr.WriteHeader(http.StatusOK)
     wr.Write(resp)
-    log.Printf("GetContainers: Returned %d containers for user '%s'.", len(jsonList), decodedUsername)
+    log.Printf("GetContainers: Returned %d containers for user '%s'.", len(jsonList), in.Username)
 }
+

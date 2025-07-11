@@ -8,6 +8,7 @@ type UserInfo struct {
     Username   string `json:"username" example:"encryptedUser"`
     UsernameIV string `json:"username_iv" example:"someUsernameIV"`
     Password   string `json:"password" example:"passwordhash"`
+    PasswordIV string `json:"password_iv" example:"somePasswordIVForRegistratgion"`
     Key        string `json:"key" example:"encryptionKey"`
 }
 

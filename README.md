@@ -12,9 +12,9 @@
 | **Container Creation**          | Creates a new container using encrypted user credentials and distro/version info. *(POST /create)*  |
 | **Container Deletion**          | Deletes container(s) by tag or associated username. *(POST /delete)*                          |
 | **Container State Management**  | Dynamically start, stop, pause, resume, and restart containers. *(POST /start, /stop, /pause, /resume, /restart)* |
-| **User Authentication**         | AES-encrypted credentials and bcrypt password verification. *(POST /authenticate)*            |
-| **Port Pooling**                | Sequential port allocation and release using a mutex-protected heap. *(GET /port-pool)*       |
-| **Asynchronous Task Handling**  | Goroutine-based worker pool for responsive and parallel container operations. *(POST /tasks)* |
+| **User Authentication**         | AES-encrypted credentials and bcrypt password verification. *(POST /register, /unregister)*            |
+| **Port Pooling**                | Sequential port allocation and release using a mutex-protected heap.       |
+| **Asynchronous Task Handling**  | Goroutine-based worker pool for responsive and parallel container operations. |
 
 ## Structure
 

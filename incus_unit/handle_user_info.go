@@ -39,12 +39,49 @@ func CheckUserExists(username string, password string, ctx context.Context) bool
             continue
         }
         if user.Username == username {
-            err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+            err := bcrypt.CompareHashAndPassword([]byte(password), []byte(user.Password))
             if err != nil {
                 log.Printf("CheckUserExists: Password mismatch for user '%s'", username)
+                log.Printf("%s:%s", user.Password, password)
                 return false
             }
             return true
+        }
+        if time.Since(start) > maxWait {
+            log.Printf("CheckUserExists: Timed out while scanning for user '%s'", username)
+            return false
+        }
+    }
+
+    log.Printf("CheckUserExists: User '%s' not found", username)
+    return false
+}
+// DeleteExistingUser deletes a user if it exists
+func DeleteExistingUser(username string, password string, ctx context.Context) bool {
+    const maxWait = time.Second
+
+    cursor, err := db.UserInfoCollection.Find(ctx, bson.D{})
+    if err != nil {
+        log.Printf("DeleteExistingUser: Failed to query users: %v", err)
+        return false
+    }
+    defer cursor.Close(ctx)
+
+    start := time.Now()
+    for cursor.Next(ctx) {
+        var user linux_virt_unit.UserInfo
+        if err := cursor.Decode(&user); err != nil {
+            continue
+        }
+        if user.Username == username {
+            err := bcrypt.CompareHashAndPassword([]byte(password), []byte(user.Password))
+            if err != nil {
+                log.Printf("DeleteExistingUser: Password mismatch for user '%s'", username)
+                return false
+            }
+            db.UserInfoCollection.DeleteOne(ctx, bson.D{{"username", user.Username}})
+            return true
+
         }
         if time.Since(start) > maxWait {
             log.Printf("CheckUserExists: Timed out while scanning for user '%s'", username)
@@ -89,22 +126,26 @@ func Register(wr http.ResponseWriter, req *http.Request) {
     }
 
     // Decrypt the username from client
-    username, err := linux_virt_unit_crypto.DecryptString(u.Username, u.Key, u.UsernameIV)
+    u.Username, err = linux_virt_unit_crypto.DecryptString(u.Username, u.Key, u.UsernameIV)
     if err != nil {
         log.Printf("Register: Failed to decrypt username: %v", err)
         http.Error(wr, "Username decryption failed", http.StatusBadRequest)
         return
     }
-
-    // Check if the username already exists
-    if CheckUserExists(username, u.Password, ctx) {
-        log.Printf("Register: Username '%s' already exists", username)
-        http.Error(wr, "User already exists", http.StatusConflict)
+    u.Password, err = linux_virt_unit_crypto.DecryptString(u.Password, u.Key, u.PasswordIV)
+    if err != nil {
+        log.Printf("Register: Failed to decrypt username: %v", err)
+        http.Error(wr, "Password decryption failed", http.StatusBadRequest)
         return
     }
 
-    // Prepare the user struct for DB insertion
-    u.Username = username
+
+    // Check if the username already exists
+    if CheckUserExists(u.Username, u.Password, ctx) {
+        log.Printf("Register: Username '%s' already exists", u.Username)
+        http.Error(wr, "User already exists", http.StatusConflict)
+        return
+    }
 
     // Insert the new user into MongoDB
     if _, err := db.UserInfoCollection.InsertOne(ctx, u); err != nil {
@@ -113,6 +154,96 @@ func Register(wr http.ResponseWriter, req *http.Request) {
         return
     }
 
-    log.Printf("Register: User '%s' registered successfully", username)
+    log.Printf("Register: User '%s' registered successfully", u.Username)
     wr.Write([]byte("User Registration Done"))
+}
+// @Summary Delete User
+// @Description DeleteUser retrieves a list of containers for a specific user by manually scanning the collection, and deletes user.
+// @Accept json
+// @Produce json
+// @Param request body linux_virt_unit.UserInfo true "User information"
+//
+//    {
+//       "username": "user123",
+//       "username_iv": "someIV1",
+//       "password": "passwordHash",
+//       "key": "encryptionKey",
+//    }
+//
+// @Success 200 {array} linux_virt_unit.ContainerInfo "Deleted containers list for debugging"
+// [
+// {
+//
+//       "username": "user123",
+//       "username_iv": "someIV1",
+//       "password": "encryptedPassword",
+//       "password_iv": "someIV2",
+//       "key": "encryptionKey",
+//       "tag": "ubuntu20",
+//       "serverip": "10.72.1.100",
+//       "serverport": "27020",
+//       "vmstatus": "running",
+//       "distro": "ubuntu",
+//       "version": "20.04"
+//    },
+//
+//    {
+//       "username": "user122",
+//       "username_iv": "someIV1",
+//       "password": "encryptedPassword",
+//       "password_iv": "someIV2",
+//       "key": "encryptionKey",
+//       "tag": "ubuntu24",
+//       "serverip": "10.72.1.101",
+//       "serverport": "27023",
+//       "vmstatus": "running",
+//       "distro": "ubuntu",
+//       "virtual": "24.04",
+//    },
+//
+// ]
+// @Failure 400
+// @Router /unregister [post]
+func Unregister(wr http.ResponseWriter, req *http.Request) {
+    if req.Method != http.MethodPost {
+        http.Error(wr, "This endpoint allows only POST methods. aborting", http.StatusMethodNotAllowed)
+        return
+    }
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    wr.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+    var in linux_virt_unit.UserInfo
+    body, err := io.ReadAll(req.Body)
+    if err != nil {
+        log.Printf("Unregister: Failed to read request body: %v", err)
+        http.Error(wr, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
+        return
+    }
+    if err := json.Unmarshal(body, &in); err != nil {
+        log.Printf("Unregister: Failed to parse JSON request body: %v", err)
+        http.Error(wr, "Failed to parse JSON: "+err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    log.Printf("Unregister: Received request for containers of user '%s' (encrypted).", in.Username)
+    //Received request (encrypted)
+
+    // Decrypt the username
+    in.Username, err = linux_virt_unit_crypto.DecryptString(in.Username, in.Key, in.UsernameIV)
+    if err != nil {
+        log.Printf("Unregister: Failed to decrypt username: %v", err)
+        http.Error(wr, "Failed to decrypt username: "+err.Error(), http.StatusBadRequest)
+        return
+    }
+    log.Printf("Unregister: Decrypted username: '%s'.", in.Username)
+
+    if CheckUserExists(in.Username, in.Password, ctx) == false {
+        wr.WriteHeader(404)
+        wr.Write([]byte("No user found\n"))
+        return
+    }
+    WorkQueue.Unreg <- in
+    // Manually scan the entire collection
 }

@@ -17,6 +17,7 @@ import (
     "github.com/gg582/linux_virt_unit"
     linux_virt_unit_crypto "github.com/gg582/linux_virt_unit/crypto"
     db "github.com/gg582/linux_virt_unit/mongo_connect"
+    "golang.org/x/crypto/bcrypt"
 )
 
 const MAX_PORT = 60001
@@ -141,8 +142,10 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
         return
     }
     password, err := linux_virt_unit_crypto.DecryptString(info.Password, info.Key, info.PasswordIV)
+    hashedpassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+    password = string(hashedpassword)
     if err != nil {
-        log.Printf("createContainer: Error decrypting password: %v", err)
+        log.Printf("createContainer: Error password hash calculation %v", err)
         return
     }
     ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

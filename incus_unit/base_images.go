@@ -3,7 +3,7 @@ package incus_unit
 var baseImages = map[string]string{
     "almalinux-9": "592612684f5a",
     "archlinux-current": "77a029c2e21f",
-    "centos-9-Stream": "b091bbf97ced",
+    "centos-9stream": "d5124c4b46ca",
     "debian-10": "0d733b54399e",
     "debian-11": "f5f16defada5",
     "debian-12": "e87d2678aebf",
