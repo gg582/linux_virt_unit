@@ -10,6 +10,8 @@ var baseImages = map[string]string{
     "devuan-beowulf": "81ff6abd16d9",
     "devuan-chimaera": "ed4ed3facb4b",
     "devuan-daedalus": "9dec7187c0bb",
+    "go-1.25rc": "ed24b2f15f7e",
+    "nginx-1.24.0": "a317e732cc3e",
     "rockylinux-9": "22d329603fac",
     "slackware-15.0": "ac561d5a2778",
     "slackware-current": "a9ef88ffa85b",
