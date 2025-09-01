@@ -1,6 +1,11 @@
 
 # linux\_virt\_unit
 
+[![DeepSource](https://app.deepsource.com/gh/gg582/linux_virt_unit.svg/?label=code+coverage&show_trend=true&token=jcUvRmH_C1MMA6FwfNXWaLw2)](https://app.deepsource.com/gh/gg582/linux_virt_unit/)
+[![DeepSource](https://app.deepsource.com/gh/gg582/linux_virt_unit.svg/?label=active+issues&show_trend=true&token=jcUvRmH_C1MMA6FwfNXWaLw2)](https://app.deepsource.com/gh/gg582/linux_virt_unit/)
+[![DeepSource](https://app.deepsource.com/gh/gg582/linux_virt_unit.svg/?label=resolved+issues&show_trend=true&token=jcUvRmH_C1MMA6FwfNXWaLw2)](https://app.deepsource.com/gh/gg582/linux_virt_unit/)
+
+
 ## Purpose
 
 `linux_virt_unit` is a Go module designed to control Incus (LXD alternative) containers. It provides backend logic for creating, deleting, and managing containers via a REST API, including secure user authentication, port allocation, and state control. This module is part of the LVirt Project, designed for lightweight and secure virtualization management with TLS-secured API access.
