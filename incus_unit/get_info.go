@@ -187,3 +187,27 @@ func GetContainers(wr http.ResponseWriter, req *http.Request) {
     log.Printf("GetContainers: Returned %d containers for user '%s'.", len(jsonList), in.Username)
 }
 
+func GetImages(wr http.ResponseWriter, req *http.Request) {
+    if req.Method != http.MethodGet {
+        http.Error(wr, "This endpoint allows only GET methods. aborting", http.StatusMethodNotAllowed)
+        return
+    }
+    wr.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+    images := make([]string, 0, len(BaseImages))
+    for k := range BaseImages {
+        images = append(images, k)
+    }
+
+    resp, err := json.Marshal(images)
+    if err != nil {
+        log.Printf("GetImages: Failed to marshal image list to JSON: %v", err)
+        http.Error(wr, "Failed to marshal response: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    wr.WriteHeader(http.StatusOK)
+    wr.Write(resp)
+    log.Printf("GetImages: Returned %d images.", len(images))
+}
+

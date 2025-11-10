@@ -78,6 +78,7 @@ func InitHttpRequest() {
 	router.HandleFunc("/pause", incus_unit.ChangeStateHandler("freeze")).Methods(http.MethodPost)
 	router.HandleFunc("/resume", incus_unit.ChangeStateHandler("unfreeze")).Methods(http.MethodPost)
 	router.HandleFunc("/restart", incus_unit.ChangeStateHandler("restart")).Methods(http.MethodPost)
+	router.HandleFunc("/images", incus_unit.GetImages).Methods(http.MethodGet)
 
 	// Swagger UI setup.
 	swaggerURL := "/docs/swagger.json"

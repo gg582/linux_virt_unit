@@ -106,7 +106,7 @@ func CreateContainer(wr http.ResponseWriter, req *http.Request) {
     //parse distro info
     info.Distro = info.Distro + "-" + info.DistroVersion
     log.Println("Distro Alias is " + info.Distro)
-    if len(baseImages[info.Distro]) == 0 {
+    if len(BaseImages[info.Distro]) == 0 {
         log.Println("image is not available. check https://images.linuxcontainers.org")
         log.Println("You requested " + info.Distro)
         http.Error(wr, "Invalid Distro", http.StatusBadRequest)
@@ -164,7 +164,7 @@ func createContainer(info linux_virt_unit.ContainerInfo) {
         Name: info.TAG,
         Source: api.InstanceSource{
             Type:        "image",
-            Fingerprint: baseImages[info.Distro],
+            Fingerprint: BaseImages[info.Distro],
         },
     }
     op, err := IncusCli.CreateInstance(containerConfig)
